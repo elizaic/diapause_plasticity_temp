@@ -78,7 +78,7 @@ ggplot() +
   geom_pointrange(data = emout2, mapping = aes(x = site, y = emmean, ymin = lower.CL, ymax = upper.CL), size = 1) +
   geom_jitter(data = firstFrost2022, mapping = aes(x = site, y = firstfrostday),
               width = .15, height = 0, alpha = .4) +
-  geom_jitter(data = CDL_estimates, aes(x = population, y = dayofyear, color = temperature), 
+  geom_jitter(data = CDL_estimates, aes(x = population, y = dayofyear, color = temperature),
              shape = 17, size = 3, width = 0.1) +
   scale_y_continuous(name = "First frost day +/- CI", breaks = month.breaks, labels = month.name) +
   scale_x_discrete(name = "Site") +
@@ -135,12 +135,12 @@ aveTemp <- rbind(
 )
 
 str(aveTemp)
-aveTemp$site <- factor(aveTemp$site, levels = c("Delta", "StGeorge", "BigBend", "Cibola"), 
+aveTemp$site <- factor(aveTemp$site, levels = c("Delta", "StGeorge", "BigBend", "Cibola"),
                        labels = c("Delta" = "Delta (39°N)","StGeorge" = "St. George (37°N)", "BigBend" = "Big Bend (35°N)", "Cibola" = "Cibola (33°N)"))
-aveTemp_longer <- aveTemp %>% pivot_longer(cols = ave_min:sd_max, 
-                               names_to = c(".value", "min_or_max"), 
+aveTemp_longer <- aveTemp %>% pivot_longer(cols = ave_min:sd_max,
+                               names_to = c(".value", "min_or_max"),
                                names_sep = "_")
-  
+
 #plot with ave max and min temps
 ggplot(data = aveTemp) +
   geom_ribbon(aes(x = dayofyear, ymin = ave_min - sd_min, ymax = ave_min + sd_min), fill = 'deepskyblue') +
@@ -153,25 +153,25 @@ ggplot(data = aveTemp) +
         strip.background = element_blank()) +
   scale_x_continuous(name = "Month", breaks = month.breaks, labels = month.letters) +
   scale_y_continuous(name = "Average High and Low Temperature (C), 2012-2021")
-    
-# dataAllSites_longer <- dataAllSites %>% pivot_longer(cols = c("TMAX", "TMIN"), names_to = "min_or_max", values_to = "TEMP") 
-# 
+
+# dataAllSites_longer <- dataAllSites %>% pivot_longer(cols = c("TMAX", "TMIN"), names_to = "min_or_max", values_to = "TEMP")
+#
 # #Using raw data
 # ggplot(data = dataAllSites_longer, aes(x = dayofyear, y = TEMP, group = NAME_group, color = min_or_max)) +
 #   geom_line(alpha = 0.2) +
-#   facet_grid( ~ NAME_group) + 
+#   facet_grid( ~ NAME_group) +
 #   theme_bw()
 
 # treatline <- data.frame(Treatment = c("Warm", "Cool"), y = c(38, 28))
-treatline.annotation <- data.frame(site = rep("Delta (39°N)",4), 
-                                   lab = c("Warm treat. high", "Cool treat. high", "Warm treat. low", "Cool treat.\n   low"), 
+treatline.annotation <- data.frame(site = rep("Delta (39°N)",4),
+                                   lab = c("Warm treat. high", "Cool treat. high", "Warm treat. low", "Cool treat.\n   low"),
                                    y = c(38, 28, 23, 12))
-treatline.annotation$site <- factor(treatline.annotation$site, 
+treatline.annotation$site <- factor(treatline.annotation$site,
                                     levels = c("Delta (39°N)", "St. George (37°N)", "Big Bend (35°N)", "Cibola (33°N)"))
 
 #using longer form data for a better graph
 site_temps <- ggplot(data = aveTemp_longer, aes(x = dayofyear, y = ave, color = min_or_max)) +
-  
+
   #horizontal 0 line
   geom_hline(yintercept = c(0), color = 'gray50', size = 0.8) +
 
@@ -179,22 +179,22 @@ site_temps <- ggplot(data = aveTemp_longer, aes(x = dayofyear, y = ave, color = 
   geom_ribbon(aes(ymax = ave + sd, ymin = ave-sd, fill = min_or_max), color = NA, alpha = 0.4) +
   # scale_fill_manual(name = "", labels = c("Daily Max", "Daily Min"), values = c("#CC79A7", "#56B4E9")) +
   scale_fill_manual(name = "", labels = c("Daily Max", "Daily Min"), values = c("grey70", "grey30")) +
-  
-  
+
+
   geom_line() +
   scale_color_manual(name = "", labels = c("Daily Max", "Daily Min"), values = c("grey70", "grey30")) +
-  
+
   facet_grid(~ site) +
-  
+
   #treatment reference lines
   geom_hline(yintercept = c(38), color = '#E69F00', size = 1.2) +
   geom_hline(yintercept = c(23), color = '#E69F00', size = 1) +
-  
+
   geom_hline(yintercept = c(28), color = '#0072B2', size = 1.2) +
   geom_hline(yintercept = c(13), color = '#0072B2', size = 1) +
-  
+
   geom_text(data = treatline.annotation, aes(x = 1, y = y, group = site, label = lab),
-            hjust = "left", size = 3.4, inherit.aes = F, nudge_y = 1.35) + 
+            hjust = "left", size = 3.4, inherit.aes = F, nudge_y = 1.35) +
   #formatting
   theme_bw(base_size = 15) +
   theme(panel.grid = element_blank(),
@@ -299,7 +299,7 @@ for (i in 1:ITER) {
 }
 
 boot.cor.long <- boot.cor %>% pivot_longer(cols = 1:4, names_to = "site", values_to = "correlation")
-boot.cor.long %>% group_by(site) %>% 
+boot.cor.long %>% group_by(site) %>%
   summarise(
     mean = mean(correlation),
     sd = sd(correlation),
@@ -326,7 +326,7 @@ for (i in 1:ITER) {
 }
 
 boot.cor.min.long <- boot.cor.min %>% pivot_longer(cols = 1:4, names_to = "site", values_to = "correlation")
-boot.cor.min.long %>% group_by(site) %>% 
+boot.cor.min.long %>% group_by(site) %>%
   summarise(
     mean = mean(correlation),
     sd = sd(correlation),
@@ -348,10 +348,10 @@ ggarrange(max.cor.plot, min.cor.plot, nrow = 2, ncol = 1, common.legend = T, leg
 #   scale_y_continuous(name = "Average Low Temperature (°C) \n2010-2019", sec.axis = sec_axis(~ (. - a.scale)/b.scale, name = 'Daylength (hours)')) +
 #   theme_classic() +
 #   theme(plot.margin=unit(c(0.5,0.5,0.2,0.5), "cm"),
-#         text = element_text(size = 20), 
-#         axis.title.y.left = element_text(color = 'skyblue', vjust = 2), 
+#         text = element_text(size = 20),
+#         axis.title.y.left = element_text(color = 'skyblue', vjust = 2),
 #         axis.title.y.right = element_text(color = 'gold', vjust = 3))
-# 
+#
 # temp.daylengthfn <- function(tempdata, daylengthdata){
 #   # ylim.prim = range(tempdata$ave_min)
 #   ylim.prim = c(-20,40)
@@ -359,20 +359,20 @@ ggarrange(max.cor.plot, min.cor.plot, nrow = 2, ncol = 1, common.legend = T, leg
 #   ylim.sec = c(6,18)
 #   b.scale <- diff(ylim.prim)/diff(ylim.sec)
 #   a.scale <- ylim.prim[1] - b.scale*ylim.sec[1]
-#   
+#
 #   ggplot(data = tempdata, aes(x = dayofyear, y = ave_min)) +
 #     geom_ribbon(aes(x = dayofyear, ymin = ave_min - sd_min, ymax = ave_min + sd_min), fill = 'skyblue') +
 #     geom_line(data = daylengthdata, aes(x = day.new, y = a.scale + daylength*b.scale), color = 'gold', size = 4) +
 #     scale_x_continuous(name = "Month", breaks = month.breaks, labels = month.letters) +
-#     scale_y_continuous(limits = c(-20,40), name = "Average Low Temperature (°C) \n2010-2019", 
+#     scale_y_continuous(limits = c(-20,40), name = "Average Low Temperature (°C) \n2010-2019",
 #                        sec.axis = sec_axis(~ (. - a.scale)/b.scale, name = 'Daylength (hours)')) +
 #     theme_classic() +
 #     theme(plot.margin=unit(c(0.5,0.5,0.2,0.5), "cm"),
-#           text = element_text(size = 20), 
-#           axis.title.y.left = element_text(color = 'skyblue', vjust = 2), 
+#           text = element_text(size = 20),
+#           axis.title.y.left = element_text(color = 'skyblue', vjust = 2),
 #           axis.title.y.right = element_text(color = 'gold', vjust = 3))
 # }
-# 
+#
 # ggarrange(
 # temp.daylengthfn(Delta.summary, Delta.daylengths),
 # temp.daylengthfn(StGeorge.summary, StGeorge.daylengths),
@@ -380,12 +380,12 @@ ggarrange(max.cor.plot, min.cor.plot, nrow = 2, ncol = 1, common.legend = T, leg
 # temp.daylengthfn(Cibola.summary, Cibola.daylengths),
 # nrow = 1)
 
-########### 
-########### 
-########### 
+###########
+###########
+###########
 #New Average Temperature plot ----
 
-uspest.longertemp <- uspest %>% pivot_longer(cols = c(minimum.temperature.C, maximum.temperature.C), 
+uspest.longertemp <- uspest %>% pivot_longer(cols = c(minimum.temperature.C, maximum.temperature.C),
                                              names_to = "min.max", values_to = "temperature") %>%
   group_by(population, week, min.max) %>%
   summarize(
@@ -399,7 +399,7 @@ ggplot() +
   # scale_color_manual(values = colorRampPalette(brewer.pal(8, "Blues"))(11) ) +
   geom_line(data = uspest.longertemp %>% filter(min.max == "maximum.temperature.C"), aes(x = week, y = max.temp, group = min.max, color = min.max)) +
   geom_line(data = uspest.longertemp %>% filter(min.max == "minimum.temperature.C"), aes(x = week, y = min.temp, group = min.max, color = min.max)) +
-  
+
   facet_wrap(~ population, ncol = 4)
 
 

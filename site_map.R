@@ -13,7 +13,7 @@ library(mapdata)
 
 # ##read in collection site data
 collections <- read_xlsx("2022collection_site_coords.xlsx")
-# 
+#
 # ##range expansion points
 # expansion <- read_xlsx("collection_sites.xlsx",
 #                        sheet = "Sheet2")
@@ -31,7 +31,7 @@ watershedPoints <- fortify(shapeData, region = "id")
 watershedDF <- merge(watershedPoints, shapeData@data, by = "id")
 
 ### Focusing on N America river data
-NA_shapeData <- rgdal::readOGR("ne_10m_rivers_north_america", 
+NA_shapeData <- rgdal::readOGR("ne_10m_rivers_north_america",
                                "ne_10m_rivers_north_america")
 NA_shapeData@data$id <- rownames(NA_shapeData@data)
 NA_watershedPoints <- fortify(NA_shapeData, region = "id")
@@ -75,7 +75,7 @@ map <- ggplot() +
   geom_path(data=NA_water, # more rivers
             aes(x = long, y = lat, group = group),
             color = 'lightblue', size=as.numeric(NA_water$scalerank*.06)) +
-  
+
   # geom_point(data = expansion, #range expansion points
   #            aes(x = longitude, y = latitude, fill = year), shape = 22, size = 2) +
   # scale_fill_brewer(palette = "Reds", name = "Range edge") +

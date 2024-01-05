@@ -14,24 +14,24 @@ library(viridis)
 library(lmtest)
 
 # CDL data ----
-oviposition_data <- read_excel("diapause_datasheet_final_data.xlsx", col_types = c("guess","guess","guess","guess","guess", "date","date","date","guess","date", "guess", "guess"))
+oviposition_data <- read_excel("./plasticity_experiment_data/diapause_datasheet_final_data.xlsx", col_types = c("guess","guess","guess","guess","guess", "date","date","date","guess","date", "guess", "guess"))
 
 oviposition_data$population <- factor(oviposition_data$population, levels = c("De", "Sg", "Ci"))
 oviposition_data$daylength <- factor(oviposition_data$daylength)
 oviposition_data$temperature <- factor(oviposition_data$temperature, levels = c("38/23", "28/13"))
 oviposition_data <- oviposition_data %>% mutate(time = end_date - eclosion_date_F) %>%
   mutate(daylength_hr = if_else(daylength == 1030, 10.5,
-                 if_else(daylength==1125, 11.42, 
-                         if_else(daylength==1220, 12.33, 
-                                 if_else(daylength==1315, 13.25, 
-                                         if_else(daylength==1410, 14.17, 
+                 if_else(daylength==1125, 11.42,
+                         if_else(daylength==1220, 12.33,
+                                 if_else(daylength==1315, 13.25,
+                                         if_else(daylength==1410, 14.17,
                                                  if_else(daylength==1505, 15.08,111111111)))))))
 str(oviposition_data)
 
 # Data exploration ----
 
 summary_ovi <- oviposition_data %>%
-  group_by (daylength,temperature,population) %>% 
+  group_by (daylength,temperature,population) %>%
   summarise(
     n = n(),
     reproductive = sum(eggs_present, na.rm = T),
@@ -67,13 +67,13 @@ ggplot(summary_ovi, aes(x = daylength_hr, y = reproductive_prop, color = tempera
   guides(fill = 'none') +
   labs(y = "Proportion Reproductive", x = "Daylength (hr)", color = "Temperature\nRegime") +
   theme_bw(base_size = 15) +
-  theme(strip.background=element_rect(color = 'black', fill="white", size = 1)) 
+  theme(strip.background=element_rect(color = 'black', fill="white", size = 1))
 
 
 
 ## By photoperiod
 ggplot(data = summary_ovi) +
-  geom_point(aes(x = temperature, y = reproductive_prop, 
+  geom_point(aes(x = temperature, y = reproductive_prop,
                  shape = population, color = population), alpha = .8, size = 4) +
   geom_path(aes(x = temperature, y = reproductive_prop, group = population, color = population), size = 1) +
   theme_bw() +
@@ -96,18 +96,18 @@ plasticity <- full_join(cool, warm) %>%
   mutate(temp_diff = warm_reproductive_prop - cool_reproductive_prop)
 
 ggplot(plasticity) +
-  geom_col(aes(x = daylength, y = temp_diff, 
+  geom_col(aes(x = daylength, y = temp_diff,
                fill = population), position = "dodge", alpha = .8, size = 4) +
   ylab("proportion reproproductive in warm - cool treamtements") +
-  theme_bw() 
+  theme_bw()
 
 ggplot(plasticity) +
   geom_hline(yintercept =0) +
-  geom_point(aes(x = daylength, y = temp_diff, 
+  geom_point(aes(x = daylength, y = temp_diff,
                  color = population, shape = population), alpha = .8, size = 4) +
   geom_path(aes(x = daylength, y = temp_diff, group = population, color = population), size = 1) +
   ylab("proportion reproproductive in warm - cool treamtements") +
-  theme_bw() 
+  theme_bw()
 
 # Survival Analysis ----
 
@@ -134,7 +134,7 @@ simulateResiduals(model1) %>% plot()               # QQ plot & resid vs predicte
 summary(model1)                                    # model results
 Anova(model1, type = 3)
 lrtest(model1, model1a_2020)
-emmeans(model1, pairwise ~ temperature|daylength_hr|population, type = "response")  
+emmeans(model1, pairwise ~ temperature|daylength_hr|population, type = "response")
 
 #likelihood ratio tests
 
@@ -148,28 +148,28 @@ Anova(model1a_2020, type = 3)
 
 # CDL ----
 #DE cool
-DeCool_glm <- glm(eggs_present ~ daylength_hr, 
+DeCool_glm <- glm(eggs_present ~ daylength_hr,
                  data = oviposition_data %>% filter(population == "De" & temperature == "28/13"),
                  family = binomial)
 
 #DE warm
-DeWarm_glm <- glm(eggs_present ~ daylength_hr, 
+DeWarm_glm <- glm(eggs_present ~ daylength_hr,
                   data = oviposition_data %>% filter(population == "De" & temperature == "38/23"),
                   family = binomial)
 #SG cool
-SgCool_glm <- glm(eggs_present ~ daylength_hr, 
+SgCool_glm <- glm(eggs_present ~ daylength_hr,
                   data = oviposition_data %>% filter(population == "Sg" & temperature == "28/13"),
                   family = binomial)
 #SG warm
-SgWarm_glm <- glm(eggs_present ~ daylength_hr, 
+SgWarm_glm <- glm(eggs_present ~ daylength_hr,
                   data = oviposition_data %>% filter(population == "Sg" & temperature == "38/23"),
                   family = binomial)
 #CI cool
-CiCool_glm <- glm(eggs_present ~ daylength_hr, 
+CiCool_glm <- glm(eggs_present ~ daylength_hr,
                   data = oviposition_data %>% filter(population == "Ci" & temperature == "28/13"),
                   family = binomial)
 #CI warm
-CiWarm_glm <- glm(eggs_present ~ daylength_hr, 
+CiWarm_glm <- glm(eggs_present ~ daylength_hr,
                   data = oviposition_data %>% filter(population == "Ci" & temperature == "38/23"),
                   family = binomial)
 coef(DeCool_glm)
@@ -198,25 +198,25 @@ CiWarm_cdl_CI <- CiWarm_cdl + attr(CiWarm_cdl, "SE") %*% matrix(qnorm(1 - 0.05/2
 DeCool_V <- vcov(DeCool_glm)
 DeCool_cdl2 <- -DeCool_glm$coefficients[1]/DeCool_glm$coefficients[2]
 
-DeCool_MoE <- qnorm(1-0.05/2)*sqrt( (DeCool_cdl2^2) * 
-                        ((DeCool_V[1,1]/DeCool_glm$coefficients[1]^2) + 
-                        (DeCool_V[2,2]/DeCool_glm$coefficients[2]^2) - 
+DeCool_MoE <- qnorm(1-0.05/2)*sqrt( (DeCool_cdl2^2) *
+                        ((DeCool_V[1,1]/DeCool_glm$coefficients[1]^2) +
+                        (DeCool_V[2,2]/DeCool_glm$coefficients[2]^2) -
                         (2*DeCool_V[1,2]/(DeCool_glm$coefficients[1]*DeCool_glm$coefficients[2]))))
 c(DeCool_cdl2 - DeCool_MoE, DeCool_cdl2 + DeCool_MoE)
 
 #Fieller's Method (definitely worse and not recommended by two papers)
-(-((DeCool_V[1,2] * (qnorm(1-0.05/2))^2) + (DeCool_glm$coefficients[1]*DeCool_glm$coefficients[2])) + 
+(-((DeCool_V[1,2] * (qnorm(1-0.05/2))^2) + (DeCool_glm$coefficients[1]*DeCool_glm$coefficients[2])) +
   sqrt( (DeCool_V[1,2] * (qnorm(1-0.05/2))^2 + (DeCool_glm$coefficients[1]*DeCool_glm$coefficients[2]))^2 -
-        (DeCool_glm$coefficients[2]^2 - (DeCool_V[2,2] * (qnorm(1-0.05/2))^2)) * 
-        (DeCool_glm$coefficients[1]^2 - (DeCool_V[1,1] * (qnorm(1-0.05/2))^2)) ) ) / 
+        (DeCool_glm$coefficients[2]^2 - (DeCool_V[2,2] * (qnorm(1-0.05/2))^2)) *
+        (DeCool_glm$coefficients[1]^2 - (DeCool_V[1,1] * (qnorm(1-0.05/2))^2)) ) ) /
   DeCool_glm$coefficients[2]^2 - (DeCool_V[2,2] * (qnorm(1-0.05/2))^2)
 
-(-((DeCool_V[1,2] * (qnorm(1-0.05/2))^2) + (DeCool_glm$coefficients[1]*DeCool_glm$coefficients[2])) - 
+(-((DeCool_V[1,2] * (qnorm(1-0.05/2))^2) + (DeCool_glm$coefficients[1]*DeCool_glm$coefficients[2])) -
     sqrt( (DeCool_V[1,2] * (qnorm(1-0.05/2))^2 + (DeCool_glm$coefficients[1]*DeCool_glm$coefficients[2]))^2 -
-            (DeCool_glm$coefficients[2]^2 - (DeCool_V[2,2] * (qnorm(1-0.05/2))^2)) * 
-            (DeCool_glm$coefficients[1]^2 - (DeCool_V[1,1] * (qnorm(1-0.05/2))^2)) ) ) / 
+            (DeCool_glm$coefficients[2]^2 - (DeCool_V[2,2] * (qnorm(1-0.05/2))^2)) *
+            (DeCool_glm$coefficients[1]^2 - (DeCool_V[1,1] * (qnorm(1-0.05/2))^2)) ) ) /
   DeCool_glm$coefficients[2]^2 - (DeCool_V[2,2] * (qnorm(1-0.05/2))^2)
-  
+
 
 
 # CDL summary
@@ -258,7 +258,7 @@ Anova(cdl2020_mod, type = 3)
 # 2022 Experimental Results ----
 # data
 
-oviposition_data2022 <- read_excel("2022_temp_photoperiod_data.xlsx")
+oviposition_data2022 <- read_excel("./plasticity_experiment_data/2022_temp_photoperiod_data.xlsx")
 
 oviposition_data2022$population <- factor(oviposition_data2022$population, levels = c("De", "Sg", "Bi", "Ci"))
 oviposition_data2022$daylength <- factor(oviposition_data2022$daylength)
@@ -286,7 +286,7 @@ CDL_est_22_daylength_hr$temperature <- factor(CDL_est_22_daylength_hr$temperatur
 ## By population NEW VERSION
 ggplot(oviposition_data2022, aes(x = daylength_hr, y = prop_repro, color = temperature, group = temperature)) +
   geom_vline(data = CDL_est_22_daylength_hr, aes(xintercept = daylength_hr, color = temperature), size = .8) +
-  geom_rect(data = CDL_est_22_daylength_hr, 
+  geom_rect(data = CDL_est_22_daylength_hr,
             aes(xmin=daylength_hr-SE, xmax=daylength_hr+SE, ymin=prop_repro, ymax=Inf, fill = temperature),
             alpha = 0.2, color = NA) +
   geom_point(size = 3, position = position_dodge(width = 0.05)) +
@@ -295,10 +295,10 @@ ggplot(oviposition_data2022, aes(x = daylength_hr, y = prop_repro, color = tempe
   scale_color_viridis_d() +
   scale_fill_viridis_d() +
   guides(fill = 'none') +
-    labs(y = "Proportion Reproductive", x = "Daylength (hr)", color = "Temperature\nRegime", 
+    labs(y = "Proportion Reproductive", x = "Daylength (hr)", color = "Temperature\nRegime",
        shape = "Experiment Block") +
   theme_bw(base_size = 15) +
-  theme(strip.background=element_rect(color = 'black', fill="white", size = 1)) 
+  theme(strip.background=element_rect(color = 'black', fill="white", size = 1))
 
 #Formal modeling
 model1_2022 <- glmmTMB(cbind(no_reproductive, no_diapause) ~ daylength_hr * temperature * population + (1|daylength_block), data = oviposition_data2022,
@@ -308,8 +308,8 @@ check_collinearity(model1_2022)                         # check for collinearity
 simulateResiduals(model1_2022) %>% plot()               # QQ plot & resid vs predicted
 
 summary(model1_2022)                                    # model results
-Anova(model1_2022, type = 3)  
-emmeans(model1_2022, pairwise ~ temperature|daylength_hr|population, type = "response") 
+Anova(model1_2022, type = 3)
+emmeans(model1_2022, pairwise ~ temperature|daylength_hr|population, type = "response")
 
 
 # CDL 2022 ----
@@ -411,46 +411,46 @@ CDL_bothyears$population = factor(CDL_bothyears$population, levels=c("De", "Sg",
 
 # Plots with both years ----
 #Combine data
-ovi_bothyears <- bind_rows(oviposition_data2022 %>% rename(n = no_pairs, 
-                                reproductive = no_reproductive, 
-                                not_reproductive = no_diapause, 
-                                reproductive_prop = prop_repro) %>% 
+ovi_bothyears <- bind_rows(oviposition_data2022 %>% rename(n = no_pairs,
+                                reproductive = no_reproductive,
+                                not_reproductive = no_diapause,
+                                reproductive_prop = prop_repro) %>%
                                 mutate(year = 2022),
   summary_ovi %>% mutate(year = 2020) %>% mutate(daylength_block = "year1"))
 ovi_bothyears$daylength_block <- as.factor(ovi_bothyears$daylength_block)
 ovi_bothyears$year <- as.factor(ovi_bothyears$year)
 
 
-CDL_est_plasticity_bothyears <- bind_rows(CDL_est_22_daylength_hr %>% 
-                                            rename(reproductive_prop = prop_repro), 
+CDL_est_plasticity_bothyears <- bind_rows(CDL_est_22_daylength_hr %>%
+                                            rename(reproductive_prop = prop_repro),
                                           CDL_est_daylength_hr)
 write.csv(CDL_est_plasticity_bothyears, "CDL.estimates.csv")
 
 ##both years in plasticity plot
 ggplot(ovi_bothyears, aes(x = daylength_hr, y = reproductive_prop, color = temperature, group = temperature)) +
-  
+
   #cdl vertical lines and shaded areas
   geom_vline(data = CDL_est_plasticity_bothyears, aes(xintercept = daylength_hr, color = temperature), size = .8, lty = 2) +
   geom_rect(data = CDL_est_plasticity_bothyears,
             aes(xmin=lower.CI, xmax=upper.CI, ymin=reproductive_prop, ymax=Inf, fill = temperature),
             alpha = 0.2, color = NA) +
-  
+
   #proportion data points and lines
   geom_point(size = 2.5, position = position_dodge(width = 0.05)) +
   # geom_line(lwd = 1.2,  position = position_dodge(width = 0.05), aes(group = temperature)) +
-  
+
   #predicted line
   # geom_line(aes(x = daylength_hr, y = 1-prediction, color = temperature, group = temperature)) +
   geom_line(data = ovi_bothyears_predictnew, aes(x = daylength_hr, y = predicted_prob, color = temperature, group = temperature),
             lwd = .9) +
-  geom_ribbon(data = ovi_bothyears_predictnew, aes(x = daylength_hr, ymin = ci_low, ymax = ci_high, 
-                                                   fill = temperature, group = temperature), 
+  geom_ribbon(data = ovi_bothyears_predictnew, aes(x = daylength_hr, ymin = ci_low, ymax = ci_high,
+                                                   fill = temperature, group = temperature),
               inherit.aes = F, alpha = 0.2) +
-  
+
   # formatting
   facet_grid(population ~ year, labeller = labeller(population = pop_labels)) +
   # scale_color_viridis_d(direction = -1, aesthetics = c('color', 'fill')) +
-  scale_color_manual(values = c("#E69F00", "#0072B2"), aesthetics = c('color', 'fill'), 
+  scale_color_manual(values = c("#E69F00", "#0072B2"), aesthetics = c('color', 'fill'),
                      labels = c("Warm: 38/23°C", "Cool: 28/13°C"),
                      guide = guide_legend(reverse = T)) +
   scale_y_continuous(n.breaks = 3) +
@@ -460,7 +460,7 @@ ggplot(ovi_bothyears, aes(x = daylength_hr, y = reproductive_prop, color = tempe
   theme(strip.background=element_rect(color = 'black', fill="white", size = 1),
         legend.position = 'bottom',
         panel.grid = element_blank()
-  ) 
+  )
 ##Export: 654 x 530
 
 # CDL plasticity plot both years
@@ -474,7 +474,7 @@ ggplot(CDL_bothyears, aes(x = temperature, y = diap_50_est, group = interaction(
   scale_color_viridis_d() +
   scale_shape_manual(values = c(19, 17)) +
   scale_x_discrete(labels = c('38' = "Warm: 38/23°C", '28' = "Cool: 28/13°C")) +
-  labs(y = "Critical Daylength (hrs)", x = "Temperature Regime", color = "Collection Site", 
+  labs(y = "Critical Daylength (hrs)", x = "Temperature Regime", color = "Collection Site",
        shape = "Experiment Year", linetype = "Experiment Year") +
   annotate('text', x = 0.45, y = 15.8, label = "Earlier\ndiapause", hjust = 0) +
   annotate('text', x = 0.45, y = 6.5, label = "Later\ndiapause", hjust = 0) +
@@ -483,7 +483,7 @@ ggplot(CDL_bothyears, aes(x = temperature, y = diap_50_est, group = interaction(
   guides(shape = guide_legend(order = 2), linetype = guide_legend(order = 2), color = guide_legend(order = 1)) +
   theme_bw(base_size = 15) +
   theme(panel.grid = element_blank())
-# 
+#
 #Export 600 x 425 px
 
 
@@ -515,7 +515,7 @@ ovi_bothyears
 
 
 str(ovi_bothyears)
-model_full <- glm(cbind(reproductive, not_reproductive) ~ daylength_hr * temperature * population + year, 
+model_full <- glm(cbind(reproductive, not_reproductive) ~ daylength_hr * temperature * population + year,
                   data = ovi_bothyears,
                   family = binomial)
 
@@ -526,7 +526,7 @@ summary(model_full)                                    # model results
 Anova(model_full, type = 3)
 exp(model_full$coefficients)
 exp(confint(model_full))
-model_full_null <- glm(cbind(reproductive, not_reproductive) ~ 1, 
+model_full_null <- glm(cbind(reproductive, not_reproductive) ~ 1,
                   data = ovi_bothyears,
                   family = binomial)
 1-logLik(model_full)/logLik(model_full_null)
@@ -534,26 +534,26 @@ lrtest(model_full, model_full_null)
 # plot(not_reproductive ~ daylength_hr, data = ovi_bothyears)
 
 
-emmeans(model_full, pairwise ~ temperature|population, type = "response")  
+emmeans(model_full, pairwise ~ temperature|population, type = "response")
 emtrends(model_full, specs = pairwise ~ temperature|population, var = "daylength_hr")
 
 #prediction
 daylength_hr_new <- seq(6, 16, 0.1)
 # predict_data <- data.frame(population = rep(c("De", "Sg", "Bi", "ci"), each = 2), temperature = c('38', '28'), year = c('2020', '2022'))
 
-ovi_bothyears_predictnew <- ovi_bothyears %>% dplyr::select(population, temperature, year) %>% distinct() %>% 
-  slice(rep(1:n(), each = 101)) %>% 
+ovi_bothyears_predictnew <- ovi_bothyears %>% dplyr::select(population, temperature, year) %>% distinct() %>%
+  slice(rep(1:n(), each = 101)) %>%
   mutate(daylength_hr = rep(daylength_hr_new, 14))
 
 
-# predict_data <- data.frame(matrix(ncol=3,nrow=0, dimnames=list(NULL, c("population", "temperatue", "year")))) %>% 
+# predict_data <- data.frame(matrix(ncol=3,nrow=0, dimnames=list(NULL, c("population", "temperatue", "year")))) %>%
 #   mutate(population = rep(c("De", "Sg", "Bi", "ci"), each = 2), temperature = rep(c('38', '28'), 2))
 inverse_logit = function(x){
   exp(x)/(1+exp(x))
 }
 
 # ovi_bothyears_predictnew$prediction <- predict(model_full, newdata = ovi_bothyears_predictnew, type = 'response', se = F)
-predicted <- as.data.frame(predict(model_full, newdata = ovi_bothyears_predictnew, type = 'link', se.fit = T)) 
+predicted <- as.data.frame(predict(model_full, newdata = ovi_bothyears_predictnew, type = 'link', se.fit = T))
 ci_high = inverse_logit(predicted$fit + (predicted$se.fit*1.96))
 ci_low = inverse_logit(predicted$fit - (predicted$se.fit*1.96))
 predicted_prob = inverse_logit(predicted$fit)

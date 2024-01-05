@@ -14,14 +14,14 @@ list_of_files <- list.files(path = "Deg_days_USPESTmodel",
 uspest <- read_csv(list_of_files, id = "file_name", skip = 1, show_col_types = F, name_repair = "universal")
 
 # add data columns and reformat
-uspest <- uspest %>% 
+uspest <- uspest %>%
   separate(col = file_name, sep = c(42, -12, -8), into = c(NA, 'station', 'year', NA)) %>% # separate out file name to get year and station
   mutate(population = case_when(station == "CBRA3_CIBOLA_AZ_" ~ "Cibola", # add population column, from station name
                           station == "CMP08_Delta_UT_" ~ "Delta",
                           station == "DLTU1_USRCRN_SITE_AT_DELTA_M_UT_" ~ "Delta",
                           station == "KIFP_Bullhead_Cty_LaughlinB_AZ_" ~ "BigBend",
                           station == "KSGU_St_George_Muni_Apt_UT_" ~ "StGeorge"
-            ), .before = "year") %>% 
+            ), .before = "year") %>%
   mutate(latitude = case_when(population == "Delta" ~ 39.100040, # add column for latitude, for daylength calculation
                               population == "StGeorge" ~ 37.086714,
                               population == "BigBend" ~ 35.060760,
@@ -96,7 +96,7 @@ str(plast_CDL)
 
 #Plot the weekly CDLs
 ggplot(data = plast_CDL, aes(x = week, y = week.CDL, color = population)) +
-  geom_line() 
+  geom_line()
 
 #relate weekly CDL to cumulative degree days
 uspest <- uspest %>% mutate(dayofyear = yday(date), .after = "day")
@@ -152,20 +152,20 @@ ggplot() +
   #Deg days & daylength blue lines
   geom_line(data = uspest, aes(x = cumulative.degree.days.C, y = daylength, color = year)) +
   scale_color_manual(values = colorRampPalette(brewer.pal(8, "Blues"))(11) )+
-  
+
   #plastic CDL lines
   geom_line(data = plast_CDL, aes(x = week.cumDD, y = week.CDL), size = 1) +
-  geom_text(data = plast_CDL %>% filter(week == 53 & population == "Delta"), aes(x = week.cumDD, y = week.CDL, group = population), 
+  geom_text(data = plast_CDL %>% filter(week == 53 & population == "Delta"), aes(x = week.cumDD, y = week.CDL, group = population),
             label = "Plastic CDL", hjust = "left", nudge_y = 0.7) +
 
   #constant CDL lines
   geom_hline(data = bean_cdl_estimates, aes(yintercept = cdl.2019), linetype = 2, size = 1) +
-  geom_text(data = bean_cdl_estimates %>% filter(population == "Delta"), aes(x = 4500, y = cdl.2019, group = population), 
+  geom_text(data = bean_cdl_estimates %>% filter(population == "Delta"), aes(x = 4500, y = cdl.2019, group = population),
             label = "Non-plastic CDL", hjust = "center", nudge_y = -0.5) +
 
   #Month labels
   geom_point(data = first_ofthe_month_all, aes(x = cumulative.degree.days.C, y = daylength)) +
-  geom_text(data = first_ofthe_month_all, aes(x = cumulative.degree.days.C, y = daylength), 
+  geom_text(data = first_ofthe_month_all, aes(x = cumulative.degree.days.C, y = daylength),
             label = rep(month.letters,4), nudge_y = -0.5, nudge_x = 60) +
 
   #DD gained labels
@@ -173,7 +173,7 @@ ggplot() +
             label = "Degree days gained with plasticity:", hjust = "left", size = 4.5) +
   geom_text(data = DD.gained.results, aes(x = 3700, y = 16.75, group = population),
             label = DD.gained.results$DD.gained, hjust = "left", size = 4.7) +
-  
+
   #formatting
   facet_wrap(~ population, nrow = 4, strip.position = "right", labeller = as_labeller(pop.names)) +
   labs(x = "Cumulative Degree Days (C)", y = "Daylength", color = "Year") +
@@ -187,7 +187,7 @@ ggplot() +
 ### for plastic CDL, find row in data frame below where daylength is less than weekly CDL in that row, find degree days of that row
 ### for constant CDL, find row where daylenght is less than the constant CDL, find degree days of that row
 
-DD.gained.data <-left_join(uspest %>% select(population, dayofyear, week, daylength) %>% distinct(), plast_CDL) %>% 
+DD.gained.data <-left_join(uspest %>% select(population, dayofyear, week, daylength) %>% distinct(), plast_CDL) %>%
   left_join(ave.cum.dd)
 
 DD.gained.results <- data.frame(
@@ -201,28 +201,28 @@ DD.gained.results$population <- factor(DD.gained.results$population, levels = c(
 
 ggplot(data = DD.gained.results, aes(x = population, y = DD.gained, color = population)) +
   geom_point(size = 5) +
-  
+
   geom_text(aes(x = population, y = DD.gained), position = position_nudge(y = -40),
             label = c("-9 days" ,"11 days", '23 days', '40 days'),color = 'black') +
   geom_text(aes(x = population, y = DD.gained), position = position_nudge(y = 45),
             label = c("-137 deg-days" ,"197 deg-days", '316 deg-days', '538 deg-days'),color = 'black') +
   geom_hline(yintercept = 0, color = 'grey 75') +
-  
+
   labs(x = "Population", y = "Degree Days Gained", color = "Population") +
   scale_color_viridis_d() +
   theme_bw(base_size = 15) +
   theme(panel.grid = element_blank(), legend.position = 'none')
 #export 500 x 400
 
-  
+
 
 ################OLDER VERSIONS#####################
 # Photothermographs with USPEST Data ----
 Delta_DD_2018 <- read.csv("Deg_days_USPESTmodel//Diorhabda_carinulata_CMP08_Delta_UT_2018_1_1.csv", skip = 1)
 Delta_DD_2018$month <- as.numeric(Delta_DD_2018$month)
 Delta_DD_2018$day <- as.numeric(Delta_DD_2018$day)
-Delta_DD_2018 <- Delta_DD_2018 %>% mutate(year = rep(2018, nrow(Delta_DD_2018)), .before = 'month') %>% 
-  unite(col = 'date', year:day, sep = '-', remove = F) 
+Delta_DD_2018 <- Delta_DD_2018 %>% mutate(year = rep(2018, nrow(Delta_DD_2018)), .before = 'month') %>%
+  unite(col = 'date', year:day, sep = '-', remove = F)
 Delta_DD_2018$date <- ymd(Delta_DD_2018$date)
 Delta_DD_2018 <- Delta_DD_2018 %>% mutate(daylength = daylength(lat = 39.100040, doy = date))
 
@@ -233,7 +233,7 @@ first_ofthe_month <- Delta_DD_2018 %>% filter(day == 1)
 ggplot() +
   geom_line(data = Delta_DD_2018, aes(x = cumulative.degree.days.C, y = daylength)) +
   geom_point(data = first_ofthe_month, aes(x = cumulative.degree.days.C, y = daylength)) +
-  geom_text(data = first_ofthe_month, aes(x = cumulative.degree.days.C, y = daylength), 
+  geom_text(data = first_ofthe_month, aes(x = cumulative.degree.days.C, y = daylength),
             label = month.letters, nudge_y = 0.2, nudge_x = 25)
 
 ggplot(Delta_DD_2018, aes(x = maximum.temperature.C, y = daylength)) +
@@ -255,7 +255,7 @@ Delta.latitude = 39.100040
 Delta_photothermo_data <- DD_allyears(Delta, "Delta", Delta.latitude)
 Delta_photothermo_data$YEAR <- as.factor(Delta_photothermo_data$YEAR)
 
-Delta_photothermo_data %>% group_by(YEAR) %>% 
+Delta_photothermo_data %>% group_by(YEAR) %>%
   summarise(
     total_DD <- sum(daily_DD)
   )
@@ -265,14 +265,14 @@ StGeorge.latitude = 37.1
 StGeorge_photothermo_data <- DD_allyears(StGeorge, "StGeorge", StGeorge.latitude)
 StGeorge_photothermo_data$YEAR <- as.factor(StGeorge_photothermo_data$YEAR)
 
-StGeorge_photothermo_data %>% group_by(YEAR) %>% 
+StGeorge_photothermo_data %>% group_by(YEAR) %>%
   summarise(
     total_DD <- sum(daily_DD)
   )
 
 
 # Photothermographs ----
-## Delta 
+## Delta
 first_ofthe_month_noaa <- Delta_photothermo_data %>% filter(DAY == 1)
 
 ggplot() +
@@ -283,7 +283,7 @@ ggplot() +
   theme_bw()
 #2019,2015, 2016
 
-## StGeorge 
+## StGeorge
 StG_first_ofthe_month <- StGeorge_photothermo_data %>% filter(DAY == 1)
 
 ggplot() +
@@ -296,9 +296,9 @@ ggplot() +
 # Functions----
 ## Degree-days functions ----
 Diorhabda_DD <- function(data) {
-  daily_DD <- dd_calc(daily_min = data$TMIN, daily_max = data$TMAX, thresh_low = 11.11, thresh_up = 36.7, 
+  daily_DD <- dd_calc(daily_min = data$TMIN, daily_max = data$TMAX, thresh_low = 11.11, thresh_up = 36.7,
                    method = "sng_sine", cumulative = F, quiet = T, interpolate_na = T)
-  cumulative_DD <- dd_calc(daily_min = data$TMIN, daily_max = data$TMAX, thresh_low = 11.11, thresh_up = 36.7, 
+  cumulative_DD <- dd_calc(daily_min = data$TMIN, daily_max = data$TMAX, thresh_low = 11.11, thresh_up = 36.7,
                         method = "sng_sine", cumulative = T, quiet = T, interpolate_na = T)
   out <- cbind(data, daily_DD, cumulative_DD)
   return(out)
@@ -307,7 +307,7 @@ Diorhabda_DD <- function(data) {
 DD_allyears <- function(data, site, latitude){
   listyear <- split(data, data$YEAR)
   out <- lapply(listyear, Diorhabda_DD)
-  df <- bind_rows(out) 
+  df <- bind_rows(out)
   out2 <- cbind(site = rep(site, nrow(df)), df) %>%
     mutate(daylength = daylength(lat = latitude, doy = dayofyear))
   return(out2)
