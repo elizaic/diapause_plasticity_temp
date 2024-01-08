@@ -2,6 +2,12 @@ library(lubridate)
 library(geosphere)
 library(degday)
 library(RColorBrewer)
+library(lme4)
+library(lmerTest)
+
+
+month.letters = c('J','F','M','A','M','J','J','A','S','O','N','D')
+
 
 # Import USPEST data ----
 # create list of file names for downloaded USPEST csv files
@@ -46,7 +52,7 @@ uspest %>% summarize(
 ) #across all sites, all years = 15.2
 
 #what is the average high temperature at each site each week?
-plast_CDL <- uspest %>% group_by(population, week) %>% summarise(
+plast_CDL <- uspest %>% group_by(population, week, year) %>% summarise(
   week.avehigh = mean(maximum.temperature.C)
 ) %>% mutate(pop.index = case_when (
   population == "Delta" ~ 1,
@@ -55,10 +61,11 @@ plast_CDL <- uspest %>% group_by(population, week) %>% summarise(
   population == "Cibola" ~ 4,
 ), .after = "population")
 
-ggplot(data = plast_CDL, aes(x = week, y = week.avehigh, color = population)) +
+ggplot(data = plast_CDL, aes(x = week, y = week.avehigh, color = population, linetype = year)) +
   geom_line()
 
 #extract slope and intercept from each population
+###!!!!!! CDL_estimates file uploaded in 2022... file----
 CDL_estimates <- CDL_estimates %>% mutate(temperature.cont = as.double(as.character(temperature)))
 str(CDL_estimates)
 
@@ -89,25 +96,28 @@ ggplot(data = CDL_estimates, aes(x = temperature.cont, y = daylength_hr, color =
 plast_CDL <- plast_CDL %>% mutate(week.CDL = 0)
 
 for (i in 1:nrow(plast_CDL)) {
-  plast_CDL[i,5] <- as.numeric(plast_CDL[i,4]) * plast.estimates[as.numeric(plast_CDL[i,2]),4] + plast.estimates[as.numeric(plast_CDL[i,2]),3]
+  plast_CDL[i,6] <- as.numeric(plast_CDL[i,5]) * plast.estimates[as.numeric(plast_CDL[i,2]),4] + plast.estimates[as.numeric(plast_CDL[i,2]),3]
 }
 plast_CDL$week.CDL <- as.numeric(plast_CDL$week.CDL)
 str(plast_CDL)
 
 #Plot the weekly CDLs
-ggplot(data = plast_CDL, aes(x = week, y = week.CDL, color = population)) +
+ggplot(data = plast_CDL, aes(x = week, y = week.CDL, color = population, linetype = year)) +
   geom_line()
 
 #relate weekly CDL to cumulative degree days
 uspest <- uspest %>% mutate(dayofyear = yday(date), .after = "day")
-ave.cum.dd <- uspest %>% group_by(population, dayofyear) %>% summarise(
-  ave.cum.degdays = mean(cumulative.degree.days.C)
+ave.cum.dd <- uspest %>% dplyr::select(population, date, year, week, dayofyear, cumulative.degree.days.C)
+
+#   group_by(population, dayofyear) %>% summarise(
+#   ave.cum.degdays = mean(cumulative.degree.days.C)
+# )
+# ave.cum.dd <- ave.cum.dd %>% mutate(date = as.Date(dayofyear-1, origin = "2020-01-01")) %>%
+#   mutate(week = week(date))
+week.cum.dd <- ave.cum.dd %>% group_by(population, week, year) %>% summarise(
+  week.cumDD = max(cumulative.degree.days.C)
 )
-ave.cum.dd <- ave.cum.dd %>% mutate(date = as.Date(dayofyear-1, origin = "2020-01-01")) %>%
-  mutate(week = week(date))
-week.cum.dd <- ave.cum.dd %>% group_by(population, week) %>% summarise(
-  week.cumDD = max(ave.cum.degdays)
-)
+
 plast_CDL <- left_join(x = plast_CDL, y = week.cum.dd)
 
 #make table of constant CDLs in 2019 from Bean et al. manuscript in prep Voltinism Range Expansion 2023
@@ -118,7 +128,7 @@ bean_cdl_estimates <- data.frame(
 bean_cdl_estimates$population <- factor(bean_cdl_estimates$population, levels = c("Delta", 'StGeorge', 'BigBend', "Cibola"))
 
 #Make data frame of points for the first day of the month
-first_ofthe_month_all <- uspest %>% filter(day == 1) %>% filter(year ==2022)
+first_ofthe_month_all <- uspest %>% filter(day == 1) %>% filter(year == 2022)
 
 #Make annotation data frame
 G1.annotation <- data.frame(population = "Delta", lab = "G1 adult emergence")
@@ -154,9 +164,9 @@ ggplot() +
   scale_color_manual(values = colorRampPalette(brewer.pal(8, "Blues"))(11) )+
 
   #plastic CDL lines
-  geom_line(data = plast_CDL, aes(x = week.cumDD, y = week.CDL), size = 1) +
-  geom_text(data = plast_CDL %>% filter(week == 53 & population == "Delta"), aes(x = week.cumDD, y = week.CDL, group = population),
-            label = "Plastic CDL", hjust = "left", nudge_y = 0.7) +
+  geom_line(data = plast_CDL, aes(x = week.cumDD, y = week.CDL, alpha = year), size = .7) +
+  geom_text(data = plast_CDL %>% filter(week == 53 & population == "Delta" & year == 2020), aes(x = week.cumDD, y = week.CDL, group = population),
+            label = "Plastic CDL", hjust = "left", nudge_y = 0.7, nudge_x = 100) +
 
   #constant CDL lines
   geom_hline(data = bean_cdl_estimates, aes(yintercept = cdl.2019), linetype = 2, size = 1) +
@@ -169,10 +179,10 @@ ggplot() +
             label = rep(month.letters,4), nudge_y = -0.5, nudge_x = 60) +
 
   #DD gained labels
-  geom_text(data = DD.gained.results, aes(x = 820, y = 16.75, group = population),
-            label = "Degree days gained with plasticity:", hjust = "left", size = 4.5) +
-  geom_text(data = DD.gained.results, aes(x = 3700, y = 16.75, group = population),
-            label = DD.gained.results$DD.gained, hjust = "left", size = 4.7) +
+  # geom_text(data = DD.gained.results, aes(x = 820, y = 16.75, group = population),
+  #           label = "Degree days gained with plasticity:", hjust = "left", size = 4.5) +
+  # geom_text(data = DD.gained.results, aes(x = 3700, y = 16.75, group = population),
+  #           label = DD.gained.results$DD.gained, hjust = "left", size = 4.7) +
 
   #formatting
   facet_wrap(~ population, nrow = 4, strip.position = "right", labeller = as_labeller(pop.names)) +
@@ -185,29 +195,85 @@ ggplot() +
 
 # DD gained with plasticity ----
 ### for plastic CDL, find row in data frame below where daylength is less than weekly CDL in that row, find degree days of that row
-### for constant CDL, find row where daylenght is less than the constant CDL, find degree days of that row
+### for constant CDL, find row where daylength is less than the constant CDL, find degree days of that row
 
-DD.gained.data <-left_join(uspest %>% select(population, dayofyear, week, daylength) %>% distinct(), plast_CDL) %>%
+DD.gained.data <-left_join(uspest %>% dplyr::select(population, dayofyear, week, year, daylength) %>% distinct(), plast_CDL) %>%
   left_join(ave.cum.dd)
 
-DD.gained.results <- data.frame(
-  population = c("Delta", 'StGeorge', 'BigBend', "Cibola"),
-  DD.gained = c(-137.1,197.3,315.9,538.5),
-  plast.CDL = c(14.6422, 13.05374,11.571149,11.299),
-  plast.dayofyear = c(197, 243, 295, 302),
-  calendar.gained = c(-9, 11, 23, 40)
-)
-DD.gained.results$population <- factor(DD.gained.results$population, levels = c("Delta", 'StGeorge', 'BigBend', "Cibola") )#, labels = c("Delta", 'St. George', 'Big Bend', "Cibola"))
+#figuring out when CDL happens each year for plastic CDL
 
-ggplot(data = DD.gained.results, aes(x = population, y = DD.gained, color = population)) +
-  geom_point(size = 5) +
+DD.gained.data.afterJuly <- DD.gained.data %>% filter(week > 26)
 
-  geom_text(aes(x = population, y = DD.gained), position = position_nudge(y = -40),
-            label = c("-9 days" ,"11 days", '23 days', '40 days'),color = 'black') +
-  geom_text(aes(x = population, y = DD.gained), position = position_nudge(y = 45),
-            label = c("-137 deg-days" ,"197 deg-days", '316 deg-days', '538 deg-days'),color = 'black') +
+DD.gained.results_fromfn <- DD.gained.data.afterJuly[DD.gained.data.afterJuly$daylength < DD.gained.data.afterJuly$week.CDL, ] %>%
+  group_by(population, year) %>%
+  filter(rank(dayofyear, ties.method = 'first') == 1)
+DD.gained.results_fromfn$population <- factor(DD.gained.results_fromfn$population, levels = c("Delta", 'StGeorge', 'BigBend', "Cibola") )#, labels = c("Delta", 'St. George', 'Big Bend', "Cibola"))
+
+#when does CDL happen each year for constant CDL
+DD.gained.data.afterJuly_withconstant <- left_join(DD.gained.data.afterJuly, bean_cdl_estimates)
+
+DD.gained.results_fromfn_constant <- DD.gained.data.afterJuly_withconstant[DD.gained.data.afterJuly_withconstant$daylength < DD.gained.data.afterJuly_withconstant$cdl.2019, ] %>%
+  group_by(population, year) %>%
+  filter(rank(dayofyear, ties.method = 'first') == 1) %>%
+  filter(population != "BigBend" | year != 2015 ) # remove Big Bend 2015, since we don't have plastic CDL data for that year
+DD.gained.results_fromfn_constant$population <- factor(DD.gained.results_fromfn_constant$population, levels = c("Delta", 'StGeorge', 'BigBend', "Cibola") )#, labels = c("Delta", 'St. George', 'Big Bend', "Cibola"))
+
+
+#Old results, from an average of 10 years
+# DD.gained.results <- data.frame(
+#   population = c("Delta", 'StGeorge', 'BigBend', "Cibola"),
+#   DD.gained = c(-137.1,197.3,315.9,538.5),
+#   plast.CDL = c(14.6422, 13.05374,11.571149,11.299),
+#   plast.dayofyear = c(197, 243, 295, 302),
+#   calendar.gained = c(-9, 11, 23, 40)
+# )
+
+#exploratory plot of difference between diapause timing with and without plasticity
+ggplot() +
+  geom_point(data = DD.gained.results_fromfn, aes(x = population, y = dayofyear),
+             position = position_jitter(width = 0.2), color = 'blue') +
+  geom_point(data = DD.gained.results_fromfn_constant, aes(x = population, y = dayofyear),
+             position = position_jitter(width = 0.2), color = 'black')
+
+#figure out difference between constant and plastic CDL
+DDGainedFullResults <- data.frame(population = DD.gained.results_fromfn$population,
+           year = DD.gained.results_fromfn$year,
+           plastic.CDL = DD.gained.results_fromfn$week.CDL,
+           plastic.DD = DD.gained.results_fromfn$cumulative.degree.days.C,
+           plastic.day = DD.gained.results_fromfn$dayofyear,
+           constant.CDL = DD.gained.results_fromfn_constant$week.CDL,
+           constant.DD = DD.gained.results_fromfn_constant$cumulative.degree.days.C,
+           constant.day = DD.gained.results_fromfn_constant$dayofyear,
+           days.gained = DD.gained.results_fromfn$dayofyear - DD.gained.results_fromfn_constant$dayofyear,
+           dd.gained = DD.gained.results_fromfn$cumulative.degree.days.C - DD.gained.results_fromfn_constant$cumulative.degree.days.C)
+DDGainedFullResults$population <- factor(DDGainedFullResults$population, levels = c("Delta", 'StGeorge', 'BigBend', "Cibola"), labels = c("Delta", 'St. George', 'Big Bend', "Cibola"))
+
+#run a model to get model estimates and 95% CI for degree days gained
+mod.ddgained <- lmer(dd.gained ~ population + (1|year), data = DDGainedFullResults)
+summary(mod.ddgained)
+emmeans(mod.ddgained, pairwise ~ population)
+ddgained.emout <- as.data.frame(emmeans(mod.ddgained, pairwise ~ population)$emmeans)
+
+#model for calendar days gained
+mod.daysgained <- lmer(days.gained ~ population + (1|year), data = DDGainedFullResults)
+summary(mod.daysgained)
+emmeans(mod.daysgained, pairwise ~ population)
+daysgained.emout <- as.data.frame(emmeans(mod.daysgained, pairwise ~ population)$emmeans)
+
+ggplot() +
+  geom_point(data = DDGainedFullResults, aes(x = population, y = dd.gained, color = population),
+             size = 3, alpha = 0.5, position = position_jitter(width = 0.2)) +
+  geom_point(data = ddgained.emout, aes(x = population, y = emmean, color = population),
+                  size = 5) +
+  geom_errorbar(data = ddgained.emout, aes(x = population, ymin = lower.CL, ymax = upper.CL, color = population),
+                width = 0, size = 1.2) +
+  #labels
+  geom_text(data = ddgained.emout, aes(x = population, y = 0), position = position_nudge(y = -30),
+            label = c("-11 days" ,"10 days", '19 days', '35 days'),color = 'black') +
+  geom_text(data = ddgained.emout, aes(x = population, y = 0), position = position_nudge(y = 55),
+            label = c("-171 deg-days" ,"194 deg-days", '280 deg-days', '485 deg-days'),color = 'black') +
   geom_hline(yintercept = 0, color = 'grey 75') +
-
+  #format
   labs(x = "Population", y = "Degree Days Gained", color = "Population") +
   scale_color_viridis_d() +
   theme_bw(base_size = 15) +
