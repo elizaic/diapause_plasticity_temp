@@ -2,6 +2,7 @@ library(lubridate)
 library(geosphere)
 library(degday)
 library(RColorBrewer)
+library(ggnewscale)
 library(lme4)
 library(lmerTest)
 
@@ -141,58 +142,6 @@ pop.names <- c("Delta" = "Delta (39°N)",
                "Cibola" = "Cibola (33°N)")
 
 
-# Photothermographs ----
-
-## Sites separately - facet plot, with constant CDL
-
-ggplot() +
-  geom_line(data = uspest, aes(x = cumulative.degree.days.C, y = daylength, color = year)) +
-  # labs(title = "Delta") +
-  geom_hline(data = CDL_estimates, aes(yintercept = daylength_hr, linetype = temperature), size = 1) +
-  facet_wrap(~ population, nrow = 4) +
-  theme_bw(base_size = 15)
-
-## Sites separately - facet plot, with plastic CDL
-ggplot() +
-  #overwintering emergence vertical line
-  geom_vline(xintercept = 627, color = "grey 50", size = 0.9) +
-  geom_text(data = G1.annotation, aes(x = 655, y = 6.75, group = population),
-            label = "G1 adult emergence", hjust = "left") +
-
-  #Deg days & daylength blue lines
-  geom_line(data = uspest, aes(x = cumulative.degree.days.C, y = daylength, color = year)) +
-  scale_color_manual(values = colorRampPalette(brewer.pal(8, "Blues"))(11) )+
-
-  #plastic CDL lines
-  geom_line(data = plast_CDL, aes(x = week.cumDD, y = week.CDL, alpha = year), size = .7) +
-  geom_text(data = plast_CDL %>% filter(week == 53 & population == "Delta" & year == 2020), aes(x = week.cumDD, y = week.CDL, group = population),
-            label = "Plastic CDL", hjust = "left", nudge_y = 0.7, nudge_x = 100) +
-
-  #constant CDL lines
-  geom_hline(data = bean_cdl_estimates, aes(yintercept = cdl.2019), linetype = 2, size = 1) +
-  geom_text(data = bean_cdl_estimates %>% filter(population == "Delta"), aes(x = 4500, y = cdl.2019, group = population),
-            label = "Non-plastic CDL", hjust = "center", nudge_y = -0.5) +
-
-  #Month labels
-  geom_point(data = first_ofthe_month_all, aes(x = cumulative.degree.days.C, y = daylength)) +
-  geom_text(data = first_ofthe_month_all, aes(x = cumulative.degree.days.C, y = daylength),
-            label = rep(month.letters,4), nudge_y = -0.5, nudge_x = 60) +
-
-  #DD gained labels
-  # geom_text(data = DD.gained.results, aes(x = 820, y = 16.75, group = population),
-  #           label = "Degree days gained with plasticity:", hjust = "left", size = 4.5) +
-  # geom_text(data = DD.gained.results, aes(x = 3700, y = 16.75, group = population),
-  #           label = DD.gained.results$DD.gained, hjust = "left", size = 4.7) +
-
-  #formatting
-  facet_wrap(~ population, nrow = 4, strip.position = "right", labeller = as_labeller(pop.names)) +
-  labs(x = "Cumulative Degree Days (C)", y = "Daylength", color = "Year") +
-  theme_bw(base_size = 15) +
-  theme(panel.grid = element_blank(),
-        strip.background = element_rect(color = 'black', fill="white", size = 1))
-
-#export 718 x 710 (or 714 x 680)
-
 # DD gained with plasticity ----
 ### for plastic CDL, find row in data frame below where daylength is less than weekly CDL in that row, find degree days of that row
 ### for constant CDL, find row where daylength is less than the constant CDL, find degree days of that row
@@ -279,6 +228,68 @@ ggplot() +
   theme_bw(base_size = 15) +
   theme(panel.grid = element_blank(), legend.position = 'none')
 #export 500 x 400
+
+average.ddgained <- data.frame(population = c("Delta", 'StGeorge', 'BigBend', "Cibola"),
+                               dd.gained = c(c("-171" ,"194", '280', '485')))
+average.ddgained$population <- factor(average.ddgained$population, levels = c("Delta", 'StGeorge', 'BigBend', "Cibola"))
+
+
+# Photothermographs ----
+
+## Sites separately - facet plot, with constant CDL
+
+ggplot() +
+  geom_line(data = uspest, aes(x = cumulative.degree.days.C, y = daylength, color = year)) +
+  # labs(title = "Delta") +
+  geom_hline(data = CDL_estimates, aes(yintercept = daylength_hr, linetype = temperature), size = 1) +
+  facet_wrap(~ population, nrow = 4) +
+  theme_bw(base_size = 15)
+
+## Sites separately - facet plot, with plastic CDL
+ggplot() +
+  #overwintering emergence vertical line
+  geom_vline(xintercept = 627, color = "grey 50", size = 0.9) +
+  geom_text(data = G1.annotation, aes(x = 655, y = 6.75, group = population),
+            label = "G1 adult emergence", hjust = "left") +
+
+  #Deg days & daylength blue lines
+  geom_line(data = uspest, aes(x = cumulative.degree.days.C, y = daylength, color = year)) +
+  scale_color_manual(values = colorRampPalette(brewer.pal(8, "Blues"))(11), guide = 'none' )+
+
+  #plastic CDL lines
+  geom_line(data = plast_CDL, aes(x = week.cumDD, y = week.CDL, alpha = year), size = .7) +
+  # new_scale_colour() +
+  # scale_color_manual(values = colorRampPalette(brewer.pal(8, "Greys"))(11) )+
+  geom_text(data = plast_CDL %>% filter(week == 53 & population == "Delta" & year == 2020),
+            aes(x = week.cumDD, y = week.CDL, group = population),
+            label = "Plastic CDL", hjust = "left", nudge_y = 0.7, nudge_x = 100) +
+
+  #constant CDL lines
+  geom_hline(data = bean_cdl_estimates, aes(yintercept = cdl.2019), linetype = 2, size = 1) +
+  geom_text(data = bean_cdl_estimates %>% filter(population == "Delta"),
+            aes(x = 4500, y = cdl.2019, group = population),
+            label = "Non-plastic CDL", hjust = "center", nudge_y = -0.5) +
+
+  #Month labels
+  geom_point(data = first_ofthe_month_all, aes(x = cumulative.degree.days.C, y = daylength)) +
+  geom_text(data = first_ofthe_month_all, aes(x = cumulative.degree.days.C, y = daylength),
+            label = rep(month.letters,4), nudge_y = -0.5, nudge_x = 60) +
+
+  #DD gained labels
+  geom_text(data = average.ddgained, aes(x = 820, y = 19, group = population),
+            label = "Degree days gained with plasticity:", hjust = "left", size = 4.5) +
+  geom_text(data = average.ddgained, aes(x = 3350, y = 19, group = population),
+            label = average.ddgained$dd.gained, hjust = "left", size = 4.7) +
+
+  #formatting
+  facet_wrap(~ population, nrow = 4, strip.position = "right", labeller = as_labeller(pop.names)) +
+  labs(x = "Cumulative Degree Days (C)", y = "Daylength", color = "Year") +
+  theme_bw(base_size = 15) +
+  theme(panel.grid = element_blank(),
+        strip.background = element_rect(color = 'black', fill="white", size = 1))
+
+
+#export 718 x 710 (or 714 x 680)
 
 
 
