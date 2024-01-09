@@ -167,6 +167,16 @@ DD.gained.results_fromfn_constant <- DD.gained.data.afterJuly_withconstant[DD.ga
   filter(population != "BigBend" | year != 2015 ) # remove Big Bend 2015, since we don't have plastic CDL data for that year
 DD.gained.results_fromfn_constant$population <- factor(DD.gained.results_fromfn_constant$population, levels = c("Delta", 'StGeorge', 'BigBend', "Cibola") )#, labels = c("Delta", 'St. George', 'Big Bend', "Cibola"))
 
+#Remaining degree days after CDL
+#total DD each year
+totalDD <- uspest %>% group_by(population, year) %>% summarize(
+  total.DD = max(cumulative.degree.days.C)) %>%
+  filter(population != "BigBend" | year != 2015) # remove Big Bend 2015, since we don't have plastic CDL data for that year
+totalDD_plastic <- left_join(DD.gained.results_fromfn, totalDD)
+totalDD_constant <- left_join(DD.gained.results_fromfn_constant, totalDD)
+
+# totalDD$population <- factor(totalDD$population, levels = c("Delta", 'StGeorge', 'BigBend', "Cibola") )#, labels = c("Delta", 'St. George', 'Big Bend', "Cibola"))
+
 
 #Old results, from an average of 10 years
 # DD.gained.results <- data.frame(
@@ -180,9 +190,9 @@ DD.gained.results_fromfn_constant$population <- factor(DD.gained.results_fromfn_
 #exploratory plot of difference between diapause timing with and without plasticity
 ggplot() +
   geom_point(data = DD.gained.results_fromfn, aes(x = population, y = dayofyear),
-             position = position_jitter(width = 0.2), color = 'blue') +
+             position = position_jitter(width = 0.2, height = 0), color = 'blue') +
   geom_point(data = DD.gained.results_fromfn_constant, aes(x = population, y = dayofyear),
-             position = position_jitter(width = 0.2), color = 'black')
+             position = position_jitter(width = 0.2, height = 0), color = 'black')
 
 #figure out difference between constant and plastic CDL
 DDGainedFullResults <- data.frame(population = DD.gained.results_fromfn$population,
@@ -190,9 +200,11 @@ DDGainedFullResults <- data.frame(population = DD.gained.results_fromfn$populati
            plastic.CDL = DD.gained.results_fromfn$week.CDL,
            plastic.DD = DD.gained.results_fromfn$cumulative.degree.days.C,
            plastic.day = DD.gained.results_fromfn$dayofyear,
+           plastic.DDremaining = totalDD_plastic$total.DD - totalDD_plastic$cumulative.degree.days.C,
            constant.CDL = DD.gained.results_fromfn_constant$week.CDL,
            constant.DD = DD.gained.results_fromfn_constant$cumulative.degree.days.C,
            constant.day = DD.gained.results_fromfn_constant$dayofyear,
+           constant.DDremaining = totalDD_constant$total.DD - totalDD_constant$cumulative.degree.days.C,
            days.gained = DD.gained.results_fromfn$dayofyear - DD.gained.results_fromfn_constant$dayofyear,
            dd.gained = DD.gained.results_fromfn$cumulative.degree.days.C - DD.gained.results_fromfn_constant$cumulative.degree.days.C)
 DDGainedFullResults$population <- factor(DDGainedFullResults$population, levels = c("Delta", 'StGeorge', 'BigBend', "Cibola"), labels = c("Delta", 'St. George', 'Big Bend', "Cibola"))
@@ -209,7 +221,27 @@ summary(mod.daysgained)
 emmeans(mod.daysgained, pairwise ~ population)
 daysgained.emout <- as.data.frame(emmeans(mod.daysgained, pairwise ~ population)$emmeans)
 
-ggplot() +
+#model for days remaining plastic
+mod.daysremaining <- lmer(plastic.DDremaining ~ population + (1|year), data = DDGainedFullResults)
+summary(mod.daysremaining)
+emmeans(mod.daysremaining, pairwise ~ population)
+# daysgained.emout <- as.data.frame(emmeans(mod.daysremaining, pairwise ~ population)$emmeans)
+
+#model for days remaining - constant
+mod.daysremaining.constant <- lmer(constant.DDremaining ~ population + (1|year), data = DDGainedFullResults)
+summary(mod.daysremaining.constant)
+emmeans(mod.daysremaining.constant, pairwise ~ population)
+# daysgained.emout <- as.data.frame(emmeans(mod.daysremaining.constant, pairwise ~ population)$emmeans)
+
+#model for plastic day
+mod.plasticday <- lmer(plastic.day ~ population + (1|year), data = DDGainedFullResults)
+summary(mod.plasticday)
+emmeans(mod.plasticday, pairwise ~ population)
+plasticday.emout <- as.data.frame(emmeans(mod.plasticday, pairwise ~ population)$emmeans)
+plasticday.emout$population <- factor(plasticday.emout$population, levels = c("Delta", "StGeorge", "BigBend", "Cibola"), labels = c("Delta", 'St. George', 'Big Bend', "Cibola"))
+
+
+daysGainedPlot <- ggplot() +
   geom_point(data = DDGainedFullResults, aes(x = population, y = dd.gained, color = population),
              size = 3, alpha = 0.5, position = position_jitter(width = 0.2)) +
   geom_point(data = ddgained.emout, aes(x = population, y = emmean, color = population),
@@ -223,12 +255,16 @@ ggplot() +
             label = c("-171 deg-days" ,"194 deg-days", '280 deg-days', '485 deg-days'),color = 'black') +
   geom_hline(yintercept = 0, color = 'grey 75') +
   #format
-  labs(x = "Population", y = "Degree Days Gained", color = "Population") +
+  labs(x = "Population", y = "Degree Days Gained\nwith Plasticity", color = "Population") +
   scale_color_viridis_d() +
   theme_bw(base_size = 15) +
   theme(panel.grid = element_blank(), legend.position = 'none')
+daysGainedPlot
 #export 500 x 400
 
+ggarrange(daysGainedPlot, frostVSCDL)
+
+#summaries of days gained for photothermographs
 average.ddgained <- data.frame(population = c("Delta", 'StGeorge', 'BigBend', "Cibola"),
                                dd.gained = c(c("-171" ,"194", '280', '485')))
 average.ddgained$population <- factor(average.ddgained$population, levels = c("Delta", 'StGeorge', 'BigBend', "Cibola"))
@@ -278,12 +314,12 @@ ggplot() +
   #DD gained labels
   geom_text(data = average.ddgained, aes(x = 820, y = 19, group = population),
             label = "Degree days gained with plasticity:", hjust = "left", size = 4.5) +
-  geom_text(data = average.ddgained, aes(x = 3350, y = 19, group = population),
+  geom_text(data = average.ddgained, aes(x = 3610, y = 19, group = population),
             label = average.ddgained$dd.gained, hjust = "left", size = 4.7) +
 
   #formatting
   facet_wrap(~ population, nrow = 4, strip.position = "right", labeller = as_labeller(pop.names)) +
-  labs(x = "Cumulative Degree Days (C)", y = "Daylength", color = "Year") +
+  labs(x = "Cumulative Degree Days (C)", y = "Daylength", alpha = "Year") +
   theme_bw(base_size = 15) +
   theme(panel.grid = element_blank(),
         strip.background = element_rect(color = 'black', fill="white", size = 1))

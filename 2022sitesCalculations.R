@@ -41,7 +41,7 @@ firstFrost2022 <- rbind(frostNEW(Delta, "Delta"),
       frostNEW(BigBend, "BigBend"),
       frostNEW(Cibola, "Cibola")
 )
-firstFrost2022$site <- factor(firstFrost2022$site, levels = c("Delta", "StGeorge", "BigBend", "Cibola"))
+firstFrost2022$site <- factor(firstFrost2022$site, levels = c("Delta", "StGeorge", "BigBend", "Cibola"), labels = c("Delta", 'St. George', 'Big Bend', "Cibola"))
 
 summaryFirstFrost <- firstFrost2022 %>%
   group_by(site) %>%
@@ -53,23 +53,35 @@ Anova(mod, type = 3)
 plot(mod)
 emout <- emmeans(mod, pairwise ~ site)
 emout2 <- as.data.frame(emout$emmean)
-emout2$site <- factor(emout2$site, levels = c("Delta", "StGeorge", "BigBend", "Cibola"))
+emout2$site <- factor(emout2$site, levels = c("Delta", "StGeorge", "BigBend", "Cibola"), labels = c("Delta", 'St. George', 'Big Bend', "Cibola"))
 
-ggplot() +
-  geom_pointrange(data = emout2, mapping = aes(x = site, y = emmean, ymin = lower.CL, ymax = upper.CL), size = 1) +
-  geom_jitter(data = firstFrost2022, mapping = aes(x = site, y = firstfrostday),
-              width = .15, height = 0, alpha = .4) +
+frostVSCDL <- ggplot() +
+  # First Frost
+  geom_pointrange(data = emout2, mapping = aes(x = site, y = emmean, ymin = lower.CL, ymax = upper.CL, color = site), size = 1) +
+  geom_jitter(data = firstFrost2022, mapping = aes(x = site, y = firstfrostday, color = site),
+              width = 0.2, height = 0, alpha = 0.4, shape = 16, size = 2) +
+  annotate(geom = 'text', x = 1, y = 305, label = "First Frost", size = 5) +
+
   # plastic CDL
-  geom_point(data = DD.gained.results, aes(x = population, y = plast.dayofyear), size = 4, shape = 'asterisk') +
-  annotate(geom = 'text', x = 1, y = 204, label = "Plastic CDL") +
-  scale_y_continuous(name = "First frost day +/- CI", breaks = month.breaks, labels = month.name) +
-  scale_x_discrete(name = "Site") +
+  geom_pointrange(data = plasticday.emout, mapping = aes(x = population, y = emmean, ymin = lower.CL, ymax = upper.CL, color = population),
+                  size = 1, shape = 15) +
+  geom_point(data = DDGainedFullResults, aes(x = population, y = plastic.day, color = population),
+             position = position_jitter(width = 0.2, height = 0), size = 2, shape = 15, alpha = 0.4) +
+  annotate(geom = 'text', x = 1.55, y = 200, label = "Diapause\ninitiation\n(CDL)", size = 5) +
+
+  # formatting
+  scale_y_continuous(name = "Day of Year", breaks = month.breaks, labels = month.name) +
+  scale_x_discrete(name = "Population") +
+  scale_color_viridis_d(guide = 'none') +
   theme_bw(base_size = 15) +
   theme(panel.grid = element_blank(),
         strip.background = element_blank())
+frostVSCDL
 #export 454 x 496
 
-#CDL with First frost ----
+##OLDER analyses ----
+
+#warm & cool CDL with First frost OLD ----
 CDL_estimates <- read.csv("CDL_estimates.csv")
 CDL_estimates$population <- factor(CDL_estimates$population, levels = c("De", "Sg", "Bi", "Ci"), labels = c("Delta", "StGeorge", "BigBend", "Cibola") )
 CDL_estimates$temperature <- factor(CDL_estimates$temperature, levels = c("38", "28"))
@@ -85,7 +97,7 @@ ggplot() +
   labs(color = "Temp.\nof CDL") +
   theme_bw(base_size = 15)
 
-#Difference between CDL and first frost
+#Difference between CDL and first frost - OLD ----
 frost.CDL.diffs <- read.csv("CDL_resultstable_diff_frostCDL.csv")
 frost.CDL.diffs$Population <- factor(frost.CDL.diffs$Population, levels = c("Delta", "StGeorge", "BigBend", "Cibola"))
 frost.CDL.diffs$Temperature <- factor(frost.CDL.diffs$Temperature, levels = c("warm", "cool"))
