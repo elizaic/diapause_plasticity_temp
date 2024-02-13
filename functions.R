@@ -28,8 +28,8 @@ frostNEW <- function(data, site){
   out <- lapply(listyear, firstfrost2)
   df <- data.frame(matrix(unlist(out), nrow=length(out), byrow=T))
   colnames(df) <- c("firstfrostday", "firstfrosttemp")
-  out2 <- cbind(site = rep(site, length(names(out))), 
-                year = names(out), 
+  out2 <- cbind(site = rep(site, length(names(out))),
+                year = names(out),
                 df)
   return(out2)
 }
@@ -53,9 +53,9 @@ avetempsfn <- function(data, site){
 daylengthfn <- function(latitude, days, site){
   j.constant = pi/182.625
   Axis.radians = 23.439 * pi/180
-  
+
   daylength = 12 * (1 - tan(latitude * pi/180) * tan(Axis.radians * cos(j.constant * days)))
-  daylength.corrected <- data.frame(day.old = seq(1,365), daylength = daylength) %>% 
+  daylength.corrected <- data.frame(day.old = seq(1,365), daylength = daylength) %>%
     mutate(day.new = day.old - 10) %>%
     mutate(day.new = replace(day.new, day.new == -9, 356)) %>%
     mutate(day.new = replace(day.new, day.new == -8, 357)) %>%

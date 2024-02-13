@@ -45,28 +45,32 @@ firstFrost2022$site <- factor(firstFrost2022$site, levels = c("Delta", "StGeorge
 
 summaryFirstFrost <- firstFrost2022 %>%
   group_by(site) %>%
-  summarize(meanDay = mean(firstfrostday, na.rm = TRUE), meanTemp = mean(firstfrosttemp, na.rm = TRUE))
+  summarize(meanDay = mean(firstfrostday, na.rm = TRUE),
+            meanTemp = mean(firstfrosttemp, na.rm = TRUE),
+            SDDay = sd(firstfrostday, na.rm = TRUE)
+            )
 
 ## first frost day
 mod <- lm(firstfrostday ~ site + year, data = firstFrost2022)
 Anova(mod, type = 3)
-plot(mod)
+# plot(mod)
 emout <- emmeans(mod, pairwise ~ site)
 emout2 <- as.data.frame(emout$emmean)
-emout2$site <- factor(emout2$site, levels = c("Delta", "StGeorge", "BigBend", "Cibola"), labels = c("Delta", 'St. George', 'Big Bend', "Cibola"))
+# emout2$site <- factor(emout2$site, levels = c("Delta", "StGeorge", "BigBend", "Cibola"), labels = c("Delta", 'St. George', 'Big Bend', "Cibola"))
 
 frostVSCDL <- ggplot() +
   # First Frost
-  geom_pointrange(data = emout2, mapping = aes(x = site, y = emmean, ymin = lower.CL, ymax = upper.CL, color = site), size = 1) +
-  geom_jitter(data = firstFrost2022, mapping = aes(x = site, y = firstfrostday, color = site),
-              width = 0.2, height = 0, alpha = 0.4, shape = 16, size = 2) +
+  geom_pointrange(data = emout2, mapping = aes(x = site, y = emmean, ymin = lower.CL, ymax = upper.CL),
+                  size = 1, shape = 15, color = 'cornflowerblue') +
+  geom_jitter(data = firstFrost2022, mapping = aes(x = site, y = firstfrostday),
+              width = 0.2, height = 0, alpha = 0.4, shape = 15, size = 2, color = 'cornflowerblue') +
   annotate(geom = 'text', x = 1, y = 305, label = "First Frost", size = 5) +
 
   # plastic CDL
   geom_pointrange(data = plasticday.emout, mapping = aes(x = population, y = emmean, ymin = lower.CL, ymax = upper.CL, color = population),
-                  size = 1, shape = 15) +
+                  size = 1, shape = 16) +
   geom_point(data = DDGainedFullResults, aes(x = population, y = plastic.day, color = population),
-             position = position_jitter(width = 0.2, height = 0), size = 2, shape = 15, alpha = 0.4) +
+             position = position_jitter(width = 0.2, height = 0), size = 2, shape = 16, alpha = 0.4) +
   annotate(geom = 'text', x = 1.55, y = 200, label = "Diapause\ninitiation\n(CDL)", size = 5) +
 
   # formatting
@@ -219,6 +223,9 @@ site_temps
 #Put map and temp plots together
 ggarrange(full_map, site_temps, ncol = 2, labels = "AUTO", widths = c(1,3), legend = 'bottom')
 ##Export: 956 x 556 px (It looks horrible until it's at this size, so don't edit without adjusting size!!)
+
+
+################
 
 #Daylengths ----
 ##Daylength caclulations

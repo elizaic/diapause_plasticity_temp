@@ -287,8 +287,8 @@ CDL_est_22_daylength_hr$temperature <- factor(CDL_est_22_daylength_hr$temperatur
 ggplot(oviposition_data2022, aes(x = daylength_hr, y = prop_repro, color = temperature, group = temperature)) +
   geom_vline(data = CDL_est_22_daylength_hr, aes(xintercept = daylength_hr, color = temperature), size = .8) +
   geom_rect(data = CDL_est_22_daylength_hr,
-            aes(xmin=daylength_hr-SE, xmax=daylength_hr+SE, ymin=prop_repro, ymax=Inf, fill = temperature),
-            alpha = 0.2, color = NA) +
+  aes(xmin=daylength_hr-SE, xmax=daylength_hr+SE, ymin=prop_repro, ymax=Inf, fill = temperature),
+  alpha = 0.2, color = NA) +
   geom_point(size = 3, position = position_dodge(width = 0.05)) +
   geom_line(lwd = 1.2,  position = position_dodge(width = 0.05), aes(group = interaction(temperature, daylength_block))) +
   facet_wrap( ~ population, nrow = 4, strip.position = "right", labeller = labeller(population = pop_labels)) +

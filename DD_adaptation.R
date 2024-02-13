@@ -33,7 +33,12 @@ uspest <- uspest %>%
                               population == "StGeorge" ~ 37.086714,
                               population == "BigBend" ~ 35.060760,
                               population == "Cibola" ~ 33.303369)
-         ) %>%
+         ) %>% mutate(pop.index = case_when (
+    population == "Delta" ~ 1,
+    population == "StGeorge" ~ 2,
+    population == "BigBend" ~ 3,
+    population == "Cibola" ~ 4,
+  ), .after = "population") %>%
   unite(col = 'date', year:day, sep = '-', remove = F) %>% # create date column from year, month, day columns
   mutate(daylength = daylength(lat = latitude, doy = date)) # calculate daylength with geosphere package fn
 uspest$date <- ymd(uspest$date)
@@ -205,6 +210,7 @@ DDGainedFullResults <- data.frame(population = DD.gained.results_fromfn$populati
            constant.DD = DD.gained.results_fromfn_constant$cumulative.degree.days.C,
            constant.day = DD.gained.results_fromfn_constant$dayofyear,
            constant.DDremaining = totalDD_constant$total.DD - totalDD_constant$cumulative.degree.days.C,
+           dd.leftover.reduced = (totalDD_constant$total.DD - totalDD_constant$cumulative.degree.days.C) - (totalDD_plastic$total.DD - totalDD_plastic$cumulative.degree.days.C),
            days.gained = DD.gained.results_fromfn$dayofyear - DD.gained.results_fromfn_constant$dayofyear,
            dd.gained = DD.gained.results_fromfn$cumulative.degree.days.C - DD.gained.results_fromfn_constant$cumulative.degree.days.C)
 DDGainedFullResults$population <- factor(DDGainedFullResults$population, levels = c("Delta", 'StGeorge', 'BigBend', "Cibola"), labels = c("Delta", 'St. George', 'Big Bend', "Cibola"))
@@ -238,7 +244,12 @@ mod.plasticday <- lmer(plastic.day ~ population + (1|year), data = DDGainedFullR
 summary(mod.plasticday)
 emmeans(mod.plasticday, pairwise ~ population)
 plasticday.emout <- as.data.frame(emmeans(mod.plasticday, pairwise ~ population)$emmeans)
-plasticday.emout$population <- factor(plasticday.emout$population, levels = c("Delta", "StGeorge", "BigBend", "Cibola"), labels = c("Delta", 'St. George', 'Big Bend', "Cibola"))
+# plasticday.emout$population <- factor(plasticday.emout$population, levels = c("Delta", "StGeorge", "BigBend", "Cibola"), labels = c("Delta", 'St. George', 'Big Bend', "Cibola"))
+
+#model for leftover dd reduced
+mod.leftoverdd <- lmer(dd.leftover.reduced ~ population + (1|year), data = DDGainedFullResults)
+summary(mod.leftoverdd)
+emmeans(mod.leftoverdd, pairwise ~ population)
 
 
 daysGainedPlot <- ggplot() +
@@ -262,7 +273,8 @@ daysGainedPlot <- ggplot() +
 daysGainedPlot
 #export 500 x 400
 
-ggarrange(daysGainedPlot, frostVSCDL)
+ggarrange(daysGainedPlot, frostVSCDL, labels = "AUTO")
+#export 1010 x 475
 
 #summaries of days gained for photothermographs
 average.ddgained <- data.frame(population = c("Delta", 'StGeorge', 'BigBend', "Cibola"),
@@ -326,6 +338,301 @@ ggplot() +
 
 
 #export 718 x 710 (or 714 x 680)
+
+
+# If high (cibola) plasticity is adaptive at all populations----
+
+##write a function for a line that represents how CDL changes with temperature
+
+Cibola_plast_CDL <- plast_CDL %>% mutate(week.CDL = 0)
+
+for (i in 1:nrow(Cibola_plast_CDL)) {
+  Cibola_plast_CDL[i,6] <- as.numeric(Cibola_plast_CDL[i,5]) * plast.estimates[4,4] + plast.estimates[as.numeric(plast_CDL[i,2]),3]
+}
+Cibola_plast_CDL$week.CDL <- as.numeric(Cibola_plast_CDL$week.CDL)
+str(Cibola_plast_CDL)
+
+#Plot the weekly CDLs
+ggplot(data = Cibola_plast_CDL, aes(x = week, y = week.CDL, color = population, linetype = year)) +
+  geom_line()
+
+#relate weekly CDL to cumulative degree days (join week.cum.dd dataframe to plastic CDLs)
+Cibola_plast_CDL <- left_join(x = Cibola_plast_CDL, y = week.cum.dd)
+
+
+#Days gained when all pops have plasticity of Cibola
+
+Cibola_DD.gained.data <-left_join(uspest %>% dplyr::select(population, dayofyear, week, year, daylength) %>% distinct(), Cibola_plast_CDL) %>%
+  left_join(ave.cum.dd)
+
+#figuring out when CDL happens each year for plastic CDL
+
+Cibola_DD.gained.data.afterJuly <- Cibola_DD.gained.data %>% filter(week > 26)
+
+Cibola_DD.gained.results_fromfn <- Cibola_DD.gained.data.afterJuly[Cibola_DD.gained.data.afterJuly$daylength < Cibola_DD.gained.data.afterJuly$week.CDL, ] %>%
+  group_by(population, year) %>%
+  filter(rank(dayofyear, ties.method = 'first') == 1)
+Cibola_DD.gained.results_fromfn$population <- factor(Cibola_DD.gained.results_fromfn$population, levels = c("Delta", 'StGeorge', 'BigBend', "Cibola") )#, labels = c("Delta", 'St. George', 'Big Bend', "Cibola"))
+
+#when does CDL happen each year for constant CDL
+Cibola_DD.gained.data.afterJuly_withconstant <- left_join(Cibola_DD.gained.data.afterJuly, bean_cdl_estimates)
+
+Cibola_DD.gained.results_fromfn_constant <- Cibola_DD.gained.data.afterJuly_withconstant[Cibola_DD.gained.data.afterJuly_withconstant$daylength < Cibola_DD.gained.data.afterJuly_withconstant$cdl.2019, ] %>%
+  group_by(population, year) %>%
+  filter(rank(dayofyear, ties.method = 'first') == 1) #%>%
+  # filter(population != "BigBend" | year != 2015 ) # remove Big Bend 2015, since we don't have plastic CDL data for that year
+Cibola_DD.gained.results_fromfn_constant$population <- factor(Cibola_DD.gained.results_fromfn_constant$population, levels = c("Delta", 'StGeorge', 'BigBend', "Cibola") )#, labels = c("Delta", 'St. George', 'Big Bend', "Cibola"))
+
+#Remaining degree days after CDL
+#total DD each year
+Cibola_totalDD <- uspest %>% group_by(population, year) %>% summarize(
+  total.DD = max(cumulative.degree.days.C)) #%>%
+  # filter(population != "BigBend" | year != 2015) # remove Big Bend 2015, since we don't have plastic CDL data for that year
+Cibola_totalDD_plastic <- left_join(Cibola_DD.gained.results_fromfn, Cibola_totalDD)
+Cibola_totalDD_constant <- left_join(Cibola_DD.gained.results_fromfn_constant, Cibola_totalDD)
+
+#exploratory plot of difference between diapause timing with and without plasticity
+ggplot() +
+  geom_point(data = Cibola_DD.gained.results_fromfn, aes(x = population, y = dayofyear),
+             position = position_jitter(width = 0.2, height = 0), color = 'blue') +
+  geom_point(data = Cibola_DD.gained.results_fromfn_constant, aes(x = population, y = dayofyear),
+             position = position_jitter(width = 0.2, height = 0), color = 'black')
+
+#figure out difference between constant and plastic CDL
+Cibola_DDGainedFullResults <- data.frame(population = Cibola_DD.gained.results_fromfn$population,
+                                  year = Cibola_DD.gained.results_fromfn$year,
+                                  # plastic.CDL = DD.gained.results_fromfn$week.CDL,
+                                  # plastic.DD = DD.gained.results_fromfn$cumulative.degree.days.C,
+                                  plastic.day = Cibola_DD.gained.results_fromfn$dayofyear,
+                                  # plastic.DDremaining = totalDD_plastic$total.DD - totalDD_plastic$cumulative.degree.days.C,
+                                  # constant.CDL = DD.gained.results_fromfn_constant$week.CDL,
+                                  # constant.DD = DD.gained.results_fromfn_constant$cumulative.degree.days.C,
+                                  # constant.day = DD.gained.results_fromfn_constant$dayofyear,
+                                  # constant.DDremaining = totalDD_constant$total.DD - totalDD_constant$cumulative.degree.days.C,
+                                  # dd.leftover.reduced = (totalDD_constant$total.DD - totalDD_constant$cumulative.degree.days.C) - (totalDD_plastic$total.DD - totalDD_plastic$cumulative.degree.days.C),
+                                  # days.gained = DD.gained.results_fromfn$dayofyear - DD.gained.results_fromfn_constant$dayofyear,
+                                  dd.gained = Cibola_DD.gained.results_fromfn$cumulative.degree.days.C - Cibola_DD.gained.results_fromfn_constant$cumulative.degree.days.C)
+Cibola_DDGainedFullResults$population <- factor(Cibola_DDGainedFullResults$population, levels = c("Delta", 'StGeorge', 'BigBend', "Cibola"), labels = c("Delta", 'St. George', 'Big Bend', "Cibola"))
+
+
+ggplot() +
+  geom_point(data = Cibola_DDGainedFullResults, aes(x = population, y = dd.gained, color = population),
+             size = 3, alpha = 0.5, position = position_jitter(width = 0.2)) +
+  # geom_point(data = ddgained.emout, aes(x = population, y = emmean, color = population),
+  #            size = 5) +
+  # geom_errorbar(data = ddgained.emout, aes(x = population, ymin = lower.CL, ymax = upper.CL, color = population),
+  #               width = 0, size = 1.2) +
+  #labels
+  # geom_text(data = ddgained.emout, aes(x = population, y = 0), position = position_nudge(y = -30),
+  #           label = c("-11 days" ,"10 days", '19 days', '35 days'),color = 'black') +
+  # geom_text(data = ddgained.emout, aes(x = population, y = 0), position = position_nudge(y = 55),
+  #           label = c("-171 deg-days" ,"194 deg-days", '280 deg-days', '485 deg-days'),color = 'black') +
+  geom_hline(yintercept = 0, color = 'grey 75') +
+  #format
+  labs(x = "Population", y = "Degree Days Gained\nwith Plasticity", color = "Population") +
+  scale_color_viridis_d() +
+  theme_bw(base_size = 15) +
+  theme(panel.grid = element_blank(), legend.position = 'none')
+
+#export 500 x 400
+
+#frost vs. diapause figure
+ggplot() +
+  # First Frost
+  geom_pointrange(data = emout2, mapping = aes(x = site, y = emmean, ymin = lower.CL, ymax = upper.CL),
+                  size = 1, shape = 15, color = 'cornflowerblue') +
+  geom_jitter(data = firstFrost2022, mapping = aes(x = site, y = firstfrostday),
+              width = 0.2, height = 0, alpha = 0.4, shape = 15, size = 2, color = 'cornflowerblue') +
+  annotate(geom = 'text', x = 1, y = 305, label = "First Frost", size = 5) +
+
+  # plastic CDL
+  # geom_pointrange(data = plasticday.emout, mapping = aes(x = population, y = emmean, ymin = lower.CL, ymax = upper.CL, color = population),
+                  # size = 1, shape = 16) +
+  geom_point(data = Cibola_DDGainedFullResults, aes(x = population, y = plastic.day, color = population),
+             position = position_jitter(width = 0.2, height = 0), size = 2, shape = 16, alpha = 0.4) +
+  # annotate(geom = 'text', x = 1.55, y = 200, label = "Diapause\ninitiation\n(CDL)", size = 5) +
+
+  # formatting
+  scale_y_continuous(name = "Day of Year", breaks = month.breaks, labels = month.name) +
+  scale_x_discrete(name = "Population") +
+  scale_color_viridis_d(guide = 'none') +
+  theme_bw(base_size = 15) +
+  theme(panel.grid = element_blank(),
+        strip.background = element_blank())
+
+
+#Correlations of frost and temp and daylength -----
+
+#Correlations and variation within sites for whole year
+uspest %>% group_by(population) %>% summarize(
+  mean.max = mean(maximum.temperature.C),
+  sd.max = sd(maximum.temperature.C),
+  mean.min = mean(minimum.temperature.C),
+  sd.min = sd(minimum.temperature.C),
+  CV.max = sd.max/mean.max * 100,
+  CV.min = sd.min/mean.min * 100
+)
+
+#CV for only fall
+uspest %>% filter(month > 6) %>% group_by(population) %>% summarize(
+  mean.max = mean(maximum.temperature.C),
+  sd.max = sd(maximum.temperature.C),
+  mean.min = mean(minimum.temperature.C),
+  sd.min = sd(minimum.temperature.C),
+  CV.max = sd.max/mean.max * 100,
+  CV.min = sd.min/mean.min * 100
+)
+
+
+# First frost with uspest data
+
+uspest.aferJuly <- uspest %>% filter(week > 26)
+
+frost.uspest <- uspest.aferJuly[uspest.aferJuly$minimum.temperature.C < 0, ] %>%
+  group_by(population, year) %>%
+  filter(rank(dayofyear, ties.method = 'first') == 1)
+frost.uspest$population <- factor(frost.uspest$population, levels = c("Delta", 'StGeorge', 'BigBend', "Cibola") )#, labels = c("Delta", 'St. George', 'Big Bend', "Cibola"))
+
+#Getting upstream (14 days) dates and temps those days
+frost.uspest.upstreamdates <- data.frame(population = frost.uspest$population,
+                                         pop.index = frost.uspest$pop.index,
+                                         year = frost.uspest$year,
+                                         dayofyear = frost.uspest$dayofyear)
+frost.uspest.upstreamdates <- frost.uspest.upstreamdates %>% mutate(upstream.start = frost.uspest$dayofyear-15) %>%
+  mutate(upstream.end = frost.uspest$dayofyear-1)
+
+upstream.data <- data.frame()
+for (i in 1:nrow(frost.uspest)) {
+  dat <- uspest %>% filter(pop.index == as.numeric(frost.uspest.upstreamdates[i,2]) &
+                      year == frost.uspest.upstreamdates[i,3] &
+                      between(dayofyear, frost.uspest.upstreamdates[i,5], frost.uspest.upstreamdates[i,6]))
+  dat2 <- data.frame(dat)
+  upstream.data <- rbind(upstream.data, dat2)
+}
+
+upstream.summary <- upstream.data %>% group_by(population, year) %>%
+  summarise(
+    ave.high = mean(maximum.temperature.C),
+    ave.low = mean(minimum.temperature.C)
+  )
+frost.uspest <- left_join(frost.uspest, upstream.summary)
+
+#Autocorrelation of temperature for each population
+lag = 31
+
+auto.cors <- rbind(
+acf(uspest %>% filter(population == 'Delta') %>% select(maximum.temperature.C), lag.max = lag, pl = F)$acf,
+acf(uspest %>% filter(population == 'StGeorge') %>% select(maximum.temperature.C), lag.max = lag, pl = F)$acf,
+acf(uspest %>% filter(population == 'BigBend') %>% select(maximum.temperature.C), lag.max = lag, pl = F)$acf,
+acf(uspest %>% filter(population == 'Cibola') %>% select(maximum.temperature.C), lag.max = lag, pl = F)$acf,
+
+acf(uspest %>% filter(population == 'Delta') %>% select(minimum.temperature.C), lag.max = lag, pl = F)$acf,
+acf(uspest %>% filter(population == 'StGeorge') %>% select(minimum.temperature.C), lag.max = lag, pl = F)$acf,
+acf(uspest %>% filter(population == 'BigBend') %>% select(minimum.temperature.C), lag.max = lag, pl = F)$acf,
+acf(uspest %>% filter(population == 'Cibola') %>% select(minimum.temperature.C), lag.max = lag, pl = F)$acf
+) %>% as.data.frame() %>%
+  mutate(population = rep(c('Delta', 'StGeorge', 'BigBend', 'Cibola'),2), .before = 'V1') %>%
+  mutate(min.max.temp = c(rep(c('max'),4), rep(c('min'),4)), .before = 'V1')
+
+library(matrixStats)
+week1auto = rowMeans(auto.cors[ , c(7: 13)])
+week1auto.sd = rowSds(as.matrix(auto.cors[ , c(7: 13)]))
+week2auto = rowMeans(auto.cors[ , c(14: 20)])
+week2auto.sd = rowSds(as.matrix(auto.cors[ , c(14: 20)]))
+week3auto = rowMeans(auto.cors[ , c(21: 27)])
+week3auto.sd = rowSds(as.matrix(auto.cors[ , c(21: 27)]))
+week4auto = rowMeans(auto.cors[ , c(28: 34)])
+week4auto.sd = rowSds(as.matrix(auto.cors[ , c(28: 34)]))
+
+auto.cors <- cbind(auto.cors, week1auto, week1auto.sd, week2auto, week2auto.sd, week3auto, week3auto.sd, week4auto, week4auto.sd)
+
+ggplot(data = auto.cors, aes(x = population, y = week1auto)) +
+  geom_point()
+
+lm(dayofyear ~ ave.low * daylength, data = frost.uspest %>% filter(population == 'Cibola')) %>%
+  # emtrends(~population, var = 'ave.low')
+
+
+lm(dayofyear ~ ave.low * daylength, data = frost.uspest %>% filter(population == 'Cibola')) %>%
+  # emtrends(~population, var = 'ave.low')
+  summary()
+  # Anova(type = 3)
+lm(dayofyear ~ ave.low * daylength, data = frost.uspest %>% filter(population == 'Delta')) %>%
+  summary()
+lm(dayofyear ~ ave.low * daylength, data = frost.uspest %>% filter(population == 'StGeorge')) %>%
+  summary()
+
+
+
+# frost.uspest.upstreamdates = NA
+# for (i in 1:14) {
+#   frost.uspest.upstreamdates <- cbind(frost.uspest.upstreamdates, frost.uspest$date - i)
+# }
+# frost.uspest.upstreamdates <- cbind(frost.uspest, frost.uspest.upstreamdates)
+#
+# frost.uspest.upstreamdates$V2 <- as_date(frost.uspest.upstreamdates$V2, origin = lubridate::origin)
+# frost.uspest.upstreamdates$V3 <- as_date(frost.uspest.upstreamdates$V3, origin = lubridate::origin)
+# frost.uspest.upstreamdates$V4 <- as_date(frost.uspest.upstreamdates$V4, origin = lubridate::origin)
+# frost.uspest.upstreamdates$V5 <- as_date(frost.uspest.upstreamdates$V5, origin = lubridate::origin)
+# frost.uspest.upstreamdates$V6 <- as_date(frost.uspest.upstreamdates$V6, origin = lubridate::origin)
+# frost.uspest.upstreamdates$V7 <- as_date(frost.uspest.upstreamdates$V7, origin = lubridate::origin)
+# frost.uspest.upstreamdates$V8 <- as_date(frost.uspest.upstreamdates$V8, origin = lubridate::origin)
+# frost.uspest.upstreamdates$V9 <- as_date(frost.uspest.upstreamdates$V9, origin = lubridate::origin)
+# frost.uspest.upstreamdates$V10 <- as_date(frost.uspest.upstreamdates$V10, origin = lubridate::origin)
+# frost.uspest.upstreamdates$V11 <- as_date(frost.uspest.upstreamdates$V11, origin = lubridate::origin)
+# frost.uspest.upstreamdates$V12 <- as_date(frost.uspest.upstreamdates$V12, origin = lubridate::origin)
+# frost.uspest.upstreamdates$V13 <- as_date(frost.uspest.upstreamdates$V13, origin = lubridate::origin)
+# frost.uspest.upstreamdates$V14 <- as_date(frost.uspest.upstreamdates$V14, origin = lubridate::origin)
+# frost.uspest.upstreamdates$V15 <- as_date(frost.uspest.upstreamdates$V15, origin = lubridate::origin)
+#
+#
+# uspest %>% filter(pop.index == as.numeric(frost.uspest.upstreamdates[1,3]) & between(date, as_date(frost.uspest.upstreamdates[1,20]), frost.uspest.upstreamdates[1,33]))
+#
+#                   #)date == as_date(frost.uspest.upstreamdates[1,20]))
+#
+#
+#
+#
+#
+#  kmnmn<- uspest %>% group_by(population, year) %>% filter
+#   summarise(
+#
+#   )
+#
+# before.frost.uspest <- uspest.aferJuly[frost.uspest$dayofyear, ] %>%
+#   group_by(population, year)
+#
+#
+# before.frost.uspest = data.frame(NA)
+#
+# for (j in 1:nrow(frost.uspest)) {
+#   for (i in (as.numeric(frost.uspest[j,7] - 14)) : (as.numeric(frost.uspest[j,7]))) {
+#
+#     rbind(before.frost.uspest, uspest.aferJuly[i,])
+#     }
+# }
+#
+#
+#
+#
+# frost.uspest <- frost.uspest %>% mutate(upstream.date = frost.uspest$date - 14)
+
+lm(dayofyear ~ maximum.temperature.C + daylength + population + maximum.temperature.C:population + daylength:population, data = frost.uspest %>% filter(population != 'BigBend')) %>% Anova(type = 3)
+
+
+
+
+
+cor.test(~ daylength + ave_max, data = uspest, subset = site == "Delta (39°N)")
+cor.test(~ daylength + ave_max, data = daylength.temp, subset = site == "St. George (37°N)")
+cor.test(~ daylength + ave_max, data = daylength.temp, subset = site == "Big Bend (35°N)")
+cor.test(~ daylength + ave_max, data = daylength.temp, subset = site == "Cibola (33°N)")
+
+lm(maximum.temperature.C ~ daylength * population, data = uspest) %>%
+  summary()
+emmeans()
+
+
 
 
 

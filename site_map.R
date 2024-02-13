@@ -62,7 +62,7 @@ edge_col = viridis(3)[2]
 core_col = viridis(3)[1]
 
 map <- ggplot() +
-  theme_bw(base_size = 15) +
+  theme_bw(base_size = 20) +
   theme(panel.background = element_rect(fill = "aliceblue"),
         panel.grid = element_blank()) +
   # geom_rect(xmin = -127, xmax=-65, ymin=25, ymax = 50,
@@ -84,7 +84,7 @@ map <- ggplot() +
   # scale_color_manual(values = c(edge_col, core_col), name = "Collection sites \n2017-2018") +
   # scale_shape_manual(values = c(16, 17), name = "Collection sites \n2017-2018") +
   geom_text(data = collections, aes(x = longitude, y  = latitude, label = label),
-            position = position_nudge(x=0, y = .75), hjust = 'center') +
+            position = position_nudge(x=0, y = .38), hjust = 'center', size = 5) +
   # guides(shape = guide_legend(order = 1), col = guide_legend(order = 1), fill = guide_legend(order = 2)) +
   labs(x = "Longitude", y = "Latitude") +
   coord_sf(xlim = c(-118, -110), ylim = c(30, 42), expand = FALSE)+  #crop to NA
@@ -105,7 +105,7 @@ inset <- ggplot(data = world) +
   #       axis.ticks=element_blank(),
   #       panel.grid.major=element_blank()) +
   geom_rect(xmin = -118, xmax=-110, ymin=30, ymax = 42,
-            fill = NA, color = 'black', size = .5) +
+            fill = NA, color = 'red', size = 1) +
   geom_rect(xmin = -127, xmax=-65, ymin=25, ymax = 50,
             fill = 'NA', color = 'black', size = 1)
 inset
@@ -113,9 +113,9 @@ inset
 full_map <- map %>%
   ggdraw() +
   draw_plot(inset,
-            x = 0.4, y = .55, width = .5, height = .5)
+            x = 0.38, y = .7, width = .4, height = .4)
 full_map
-##export: width = 530 x 685 px, 5.52 x 7.14in
+##export: width = 450 x 596 px
 
 # full_map %>%
 #   ggsave(filename = "Figure_2.pdf", units = 'mm', width = 180, height = , device='pdf', dpi=1000)
