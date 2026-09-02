@@ -1,4 +1,16 @@
-# Packages
+##############################################################################.
+#
+# Purpose: This script is to analyze the experimental data from the two
+# diapause plasticity experiments. It calculate critical daylength,
+# compares responses in the different treatments, and generates reaction-norm
+# plots and plots comparing the plasticity of each population.
+
+# Date last modified: 9/2/2026
+# Created by: Eliza
+
+##############################################################################.
+
+# Packages -------------------------------------------------------------------
 library(tidyverse)
 library(readxl)
 library(glmmTMB)
@@ -13,8 +25,12 @@ library(MASS)
 library(viridis)
 library(lmtest)
 
-# CDL data ----
-oviposition_data <- read_excel("./plasticity_experiment_data/diapause_datasheet_final_data.xlsx", col_types = c("guess","guess","guess","guess","guess", "date","date","date","guess","date", "guess", "guess"))
+select <- dplyr::select
+
+# Data 2020 ------------------------------------------------------------------
+
+# 2020
+oviposition_data <- read_excel("plasticity_experiment_data/diapause_datasheet_final_data.xlsx", col_types = c("guess","guess","guess","guess","guess", "date","date","date","guess","date", "guess", "guess"))
 
 oviposition_data$population <- factor(oviposition_data$population, levels = c("De", "Sg", "Ci"))
 oviposition_data$daylength <- factor(oviposition_data$daylength)
@@ -28,7 +44,7 @@ oviposition_data <- oviposition_data %>% mutate(time = end_date - eclosion_date_
                                                  if_else(daylength==1505, 15.08,111111111)))))))
 str(oviposition_data)
 
-# Data exploration ----
+## Data exploration -----------------------------------------------------------
 
 summary_ovi <- oviposition_data %>%
   group_by (daylength,temperature,population) %>%
@@ -41,53 +57,23 @@ summary_ovi <- oviposition_data %>%
 summary_ovi$temperature <- factor(summary_ovi$temperature, levels = c("38/23", "28/13"), labels = c("38", "28"))
 
 
-## By population OLD VERSION
-ggplot(summary_ovi, aes(x = daylength, y = reproductive_prop, color = temperature, group = temperature)) +
-  geom_point(size = 3) +
-  geom_line(lwd = 1.2) +
-  facet_wrap( ~ population, nrow = 3) +
-  theme_bw()
-
-pop_labels_2020 <- c("De" = "Delta\n(39°N)", "Sg" = "St. George\n(37°N)", "Ci" = "Cibola\n(33°N)")
-CDL_est_daylength_hr <- CDL_est %>% rename(daylength_hr = diap_50_est) %>%
-  mutate(reproductive_prop = rep(-Inf,6))
-CDL_est_daylength_hr$temperature <- factor(CDL_est_daylength_hr$temperature, levels = c("38", "28"))
-
-## By population NEW VERSION
-ggplot(summary_ovi, aes(x = daylength_hr, y = reproductive_prop, color = temperature, group = temperature)) +
-  geom_vline(data = CDL_est_daylength_hr, aes(xintercept = daylength_hr, color = temperature), size = .8) +
-  geom_rect(data = CDL_est_daylength_hr,
-            aes(xmin=daylength_hr-SE, xmax=daylength_hr+SE, ymin=reproductive_prop, ymax=Inf, fill = temperature),
-            alpha = 0.2, color = NA) +
-  geom_point(size = 3, position = position_dodge(width = 0.05)) +
-  geom_line(lwd = 1.2,  position = position_dodge(width = 0.05), aes(group = temperature)) +
-  facet_wrap( ~ population, nrow = 4, strip.position = "right", labeller = labeller(population = pop_labels_2020)) +
-  scale_color_viridis_d() +
-  scale_fill_viridis_d() +
-  guides(fill = 'none') +
-  labs(y = "Proportion Reproductive", x = "Daylength (hr)", color = "Temperature\nRegime") +
-  theme_bw(base_size = 15) +
-  theme(strip.background=element_rect(color = 'black', fill="white", size = 1))
-
-
-
 ## By photoperiod
 ggplot(data = summary_ovi) +
   geom_point(aes(x = temperature, y = reproductive_prop,
                  shape = population, color = population), alpha = .8, size = 4) +
-  geom_path(aes(x = temperature, y = reproductive_prop, group = population, color = population), size = 1) +
+  geom_path(aes(x = temperature, y = reproductive_prop, group = population, color = population), linewidth = 1) +
   theme_bw() +
   facet_grid(rows = vars(daylength))
 
 ## Plasticity
 cool <- summary_ovi %>%
-  filter(temperature == "28/13") %>%
+  filter(temperature == "28") %>%
   ungroup() %>%
-  select(population, daylength, reproductive_prop) %>%
+  dplyr::select(population, daylength, reproductive_prop) %>%
   rename(cool_reproductive_prop=reproductive_prop)
 
 warm <- summary_ovi %>%
-  filter(temperature == "38/23") %>%
+  filter(temperature == "38") %>%
   ungroup() %>%
   select(population, daylength, reproductive_prop) %>%
   rename(warm_reproductive_prop=reproductive_prop)
@@ -109,7 +95,7 @@ ggplot(plasticity) +
   ylab("proportion reproproductive in warm - cool treamtements") +
   theme_bw()
 
-# Survival Analysis ----
+# Survival Analysis -----------------------------------------------------------
 
 SurvObj <- Surv(oviposition_data$time, oviposition_data$eggs_present)
 
@@ -118,12 +104,13 @@ model_surv1
 summary(model_surv1)
 print(survdiff(SurvObj ~ population, data = oviposition_data), digits = 6)
 
-ggsurvplot(model_surv1, data = oviposition_data,
-           surv.median.line = "v",
-           conf.int = T)
+# ggsurvplot code doesn't work
+# ggsurvplot(model_surv1, data = oviposition_data,
+#            surv.median.line = "v",
+#            conf.int = T)
 
 
-# Formal Modeling ----
+# Formal Modeling ------------------------------------------------------------
 str(oviposition_data)
 model1 <- glmmTMB(eggs_present ~ daylength_hr * temperature * population, data = oviposition_data,
                   family = binomial)
@@ -133,20 +120,20 @@ simulateResiduals(model1) %>% plot()               # QQ plot & resid vs predicte
 
 summary(model1)                                    # model results
 Anova(model1, type = 3)
-lrtest(model1, model1a_2020)
 emmeans(model1, pairwise ~ temperature|daylength_hr|population, type = "response")
 
+
 #likelihood ratio tests
-
-
-
 model1a_2020 <- glm(eggs_present ~ daylength_hr * temperature * population, data = oviposition_data,
                     family = binomial)
 simulateResiduals(model1a_2020) %>% plot()               # QQ plot & resid vs predicted
 summary(model1a_2020)
 Anova(model1a_2020, type = 3)
 
-# CDL ----
+lrtest(model1, model1a_2020)
+
+
+# CDL -------------------------------------------------------------------------
 #DE cool
 DeCool_glm <- glm(eggs_present ~ daylength_hr,
                  data = oviposition_data %>% filter(population == "De" & temperature == "28/13"),
@@ -246,19 +233,46 @@ ggplot(CDL_est, aes(x = temperature, y = diap_50_est, color = population)) +
   ylab("Estimated CDL") +
   theme_bw()
 
-# Formal modeling of CDL ----
+# Reaction norm plot with CDL calculations
+
+pop_labels_2020 <- c("De" = "Delta\n(39°N)", "Sg" = "St. George\n(37°N)", "Ci" = "Cibola\n(33°N)")
+CDL_est_daylength_hr <- CDL_est %>% rename(daylength_hr = diap_50_est) %>%
+  mutate(reproductive_prop = rep(-Inf,6))
+
+CDL_est_daylength_hr$temperature <- factor(CDL_est_daylength_hr$temperature, levels = c("38", "28"))
+
+## By population NEW VERSION
+ggplot(summary_ovi, aes(x = daylength_hr, y = reproductive_prop, color = temperature, group = temperature)) +
+  geom_vline(data = CDL_est_daylength_hr, aes(xintercept = daylength_hr, color = temperature), linewidth = .8) +
+  geom_rect(data = CDL_est_daylength_hr,
+            aes(xmin=daylength_hr-SE, xmax=daylength_hr+SE, ymin=reproductive_prop, ymax=Inf, fill = temperature),
+            alpha = 0.2, color = NA) +
+  geom_point(size = 3, position = position_dodge(width = 0.05)) +
+  geom_line(lwd = 1.2,  position = position_dodge(width = 0.05), aes(group = temperature)) +
+  facet_wrap( ~ population, nrow = 4, strip.position = "right", labeller = labeller(population = pop_labels_2020)) +
+  scale_color_viridis_d() +
+  scale_fill_viridis_d() +
+  guides(fill = 'none') +
+  labs(y = "Proportion Reproductive", x = "Daylength (hr)", color = "Temperature\nRegime") +
+  theme_bw(base_size = 15) +
+  theme(strip.background=element_rect(color = 'black', fill="white", size = 1))
+
+
+# Formal modeling of CDL ----------------------------------------------------
 lm(diap_50_est ~ temperature, data = CDL_est %>% filter(population == 'De'))
 lm(diap_50_est ~ temperature, data = CDL_est %>% filter(population == 'Sg'))
 lm(diap_50_est ~ temperature, data = CDL_est %>% filter(population == 'Ci'))
 
 cdl2020_mod <- lm(diap_50_est ~ population * temperature, data = CDL_est)
 summary(cdl2020_mod)
-Anova(cdl2020_mod, type = 3)
+# Anova(cdl2020_mod, type = 3)
 
-# 2022 Experimental Results ----
-# data
 
-oviposition_data2022 <- read_excel("./plasticity_experiment_data/2022_temp_photoperiod_data.xlsx")
+
+
+# Data 2020 -------------------------------------------------------------------
+
+oviposition_data2022 <- read_excel("plasticity_experiment_data/2022_temp_photoperiod_data.xlsx")
 
 oviposition_data2022$population <- factor(oviposition_data2022$population, levels = c("De", "Sg", "Bi", "Ci"))
 oviposition_data2022$daylength <- factor(oviposition_data2022$daylength)
@@ -277,28 +291,8 @@ ggplot(oviposition_data2022, aes(x = daylength, y = prop_repro, color = temperat
   facet_wrap( ~ population, nrow = 4) +
   theme_bw()
 
-#wrangle estimated CDL data so it fits into the plot below
-CDL_est_22_daylength_hr <- CDL_est_22 %>% rename(daylength_hr = diap_50_est) %>%
-  mutate(prop_repro = rep(-Inf,8))
-CDL_est_22_daylength_hr$temperature <- factor(CDL_est_22_daylength_hr$temperature, levels = c("38", "28"))
 
 
-## By population NEW VERSION
-ggplot(oviposition_data2022, aes(x = daylength_hr, y = prop_repro, color = temperature, group = temperature)) +
-  geom_vline(data = CDL_est_22_daylength_hr, aes(xintercept = daylength_hr, color = temperature), size = .8) +
-  geom_rect(data = CDL_est_22_daylength_hr,
-  aes(xmin=daylength_hr-SE, xmax=daylength_hr+SE, ymin=prop_repro, ymax=Inf, fill = temperature),
-  alpha = 0.2, color = NA) +
-  geom_point(size = 3, position = position_dodge(width = 0.05)) +
-  geom_line(lwd = 1.2,  position = position_dodge(width = 0.05), aes(group = interaction(temperature, daylength_block))) +
-  facet_wrap( ~ population, nrow = 4, strip.position = "right", labeller = labeller(population = pop_labels)) +
-  scale_color_viridis_d() +
-  scale_fill_viridis_d() +
-  guides(fill = 'none') +
-    labs(y = "Proportion Reproductive", x = "Daylength (hr)", color = "Temperature\nRegime",
-       shape = "Experiment Block") +
-  theme_bw(base_size = 15) +
-  theme(strip.background=element_rect(color = 'black', fill="white", size = 1))
 
 #Formal modeling
 model1_2022 <- glmmTMB(cbind(no_reproductive, no_diapause) ~ daylength_hr * temperature * population + (1|daylength_block), data = oviposition_data2022,
@@ -312,7 +306,7 @@ Anova(model1_2022, type = 3)
 emmeans(model1_2022, pairwise ~ temperature|daylength_hr|population, type = "response")
 
 
-# CDL 2022 ----
+# CDL 2022 --------------------------------------------------------------------
 #DE cool
 DeCool_glm_22 <- glm(cbind(no_reproductive, no_diapause) ~ daylength_hr,
                   data = oviposition_data2022 %>% filter(population == "De" & temperature == "28"),
@@ -413,7 +407,32 @@ CDL_bothyears <- CDL_bothyears %>% mutate(latitude = case_when(population == "De
 CDL_bothyears$population = factor(CDL_bothyears$population, levels=c("De", "Sg", "Bi", "Ci"), labels = c("Delta (39°N)", "St. George (37°N)", "Big Bend (35°N)", "Cibola (33°N)"))
 
 
-# Plots with both years ----
+#wrangle estimated CDL data so it fits into the plot below
+CDL_est_22_daylength_hr <- CDL_est_22 %>% rename(daylength_hr = diap_50_est) %>%
+  mutate(prop_repro = rep(-Inf,8))
+CDL_est_22_daylength_hr$temperature <- factor(CDL_est_22_daylength_hr$temperature, levels = c("38", "28"))
+
+
+## By population NEW VERSION
+ggplot(oviposition_data2022, aes(x = daylength_hr, y = prop_repro, color = temperature, group = temperature)) +
+  geom_vline(data = CDL_est_22_daylength_hr, aes(xintercept = daylength_hr, color = temperature), size = .8) +
+  geom_rect(data = CDL_est_22_daylength_hr,
+            aes(xmin=daylength_hr-SE, xmax=daylength_hr+SE, ymin=prop_repro, ymax=Inf, fill = temperature),
+            alpha = 0.2, color = NA) +
+  geom_point(size = 3, position = position_dodge(width = 0.05)) +
+  geom_line(lwd = 1.2,  position = position_dodge(width = 0.05), aes(group = interaction(temperature, daylength_block))) +
+  facet_wrap( ~ population, nrow = 4, strip.position = "right", labeller = labeller(population = pop_labels)) +
+  scale_color_viridis_d() +
+  scale_fill_viridis_d() +
+  guides(fill = 'none') +
+  labs(y = "Proportion Reproductive", x = "Daylength (hr)", color = "Temperature\nRegime",
+       shape = "Experiment Block") +
+  theme_bw(base_size = 15) +
+  theme(strip.background=element_rect(color = 'black', fill="white", size = 1))
+
+
+
+# Plots with both years -------------------------------------------------------
 #Combine data
 ovi_bothyears <- bind_rows(oviposition_data2022 %>% rename(n = no_pairs,
                                 reproductive = no_reproductive,
@@ -428,44 +447,15 @@ ovi_bothyears$year <- as.factor(ovi_bothyears$year)
 CDL_est_plasticity_bothyears <- bind_rows(CDL_est_22_daylength_hr %>%
                                             rename(reproductive_prop = prop_repro),
                                           CDL_est_daylength_hr)
+
 write.csv(CDL_est_plasticity_bothyears, "CDL.estimates.csv")
 
-##both years in plasticity plot
-ggplot(ovi_bothyears, aes(x = daylength_hr, y = reproductive_prop, color = temperature, group = temperature)) +
 
-  #cdl vertical lines and shaded areas
-  geom_vline(data = CDL_est_plasticity_bothyears, aes(xintercept = daylength_hr, color = temperature), size = .8, lty = 2) +
-  geom_rect(data = CDL_est_plasticity_bothyears,
-            aes(xmin=lower.CI, xmax=upper.CI, ymin=reproductive_prop, ymax=Inf, fill = temperature),
-            alpha = 0.2, color = NA) +
 
-  #proportion data points and lines
-  geom_point(size = 2.5, position = position_dodge(width = 0.05)) +
-  # geom_line(lwd = 1.2,  position = position_dodge(width = 0.05), aes(group = temperature)) +
 
-  #predicted line
-  # geom_line(aes(x = daylength_hr, y = 1-prediction, color = temperature, group = temperature)) +
-  geom_line(data = ovi_bothyears_predictnew, aes(x = daylength_hr, y = predicted_prob, color = temperature, group = temperature),
-            lwd = .9) +
-  geom_ribbon(data = ovi_bothyears_predictnew, aes(x = daylength_hr, ymin = ci_low, ymax = ci_high,
-                                                   fill = temperature, group = temperature),
-              inherit.aes = F, alpha = 0.2) +
 
-  # formatting
-  facet_grid(population ~ year, labeller = labeller(population = pop_labels)) +
-  # scale_color_viridis_d(direction = -1, aesthetics = c('color', 'fill')) +
-  scale_color_manual(values = c("#E69F00", "#0072B2"), aesthetics = c('color', 'fill'),
-                     labels = c("Warm: 38/23°C", "Cool: 28/13°C"),
-                     guide = guide_legend(reverse = T)) +
-  scale_y_continuous(n.breaks = 3) +
-  guides(fill = 'none') +
-  labs(y = "Proportion Reproductive", x = "Daylength (hr)", color = "Temperature Regime") +
-  theme_bw(base_size = 15) +
-  theme(strip.background=element_rect(color = 'black', fill="white", size = 1),
-        legend.position = 'bottom',
-        panel.grid = element_blank()
-  )
-##Export: 654 x 530
+
+
 
 # CDL plasticity plot both years
 
@@ -491,14 +481,16 @@ ggplot(CDL_bothyears, aes(x = temperature, y = diap_50_est, group = interaction(
 #Export 600 x 425 px
 
 
-##Formal modeling of CDL both years ----
+##Formal modeling of CDL both years -------------------------------------------
 
 cdl_mod <- lm(diap_50_est ~ population * temperature, data = CDL_bothyears)
 summary(cdl_mod)
 Anova(cdl_mod, type = 3)
 emmeans(cdl_mod, pairwise ~ temperature|population)
 
-##Correlation of CDL-latitude ----
+
+
+##Correlation of CDL-latitude -------------------------------------------------
 CDL_bothyears_warm <- CDL_bothyears %>% filter(temperature == 38)
 CDL_bothyears_cool <- CDL_bothyears %>% filter(temperature == 28)
 
@@ -521,7 +513,10 @@ cbind(day_of_year,delta_daylength,stgeorge_daylength,bigbend_daylength,cibola_da
 
 as.Date(c(219,210,202,211,224,216,230,257,270,279,281), origin = "2022-01-01")
 
-# Formal modeling of oviposition data ----
+
+
+
+# Formal modeling of oviposition data -----------------------------------------
 
 ovi_bothyears
 
@@ -572,4 +567,43 @@ predicted_prob = inverse_logit(predicted$fit)
 ovi_bothyears_predictnew <- cbind(ovi_bothyears_predictnew, predicted_prob, ci_high, ci_low)
 
 
+
+##both years in plasticity plot
+ggplot(ovi_bothyears, aes(x = daylength_hr, y = reproductive_prop, color = temperature, group = temperature)) +
+
+  #cdl vertical lines and shaded areas
+  geom_vline(data = CDL_est_plasticity_bothyears, aes(xintercept = daylength_hr, color = temperature), size = .8, lty = 2) +
+  geom_rect(data = CDL_est_plasticity_bothyears,
+            aes(xmin=lower.CI, xmax=upper.CI, ymin=reproductive_prop, ymax=Inf, fill = temperature),
+            alpha = 0.2, color = NA) +
+
+  geom_hline(yintercept = 0.5, linetype = 2) +
+
+  #proportion data points and lines
+  geom_point(size = 2.5, position = position_dodge(width = 0.05)) +
+  # geom_line(lwd = 1.2,  position = position_dodge(width = 0.05), aes(group = temperature)) +
+
+  #predicted line
+  # geom_line(aes(x = daylength_hr, y = 1-prediction, color = temperature, group = temperature)) +
+  geom_line(data = ovi_bothyears_predictnew, aes(x = daylength_hr, y = predicted_prob, color = temperature, group = temperature),
+            lwd = .9) +
+  geom_ribbon(data = ovi_bothyears_predictnew, aes(x = daylength_hr, ymin = ci_low, ymax = ci_high,
+                                                   fill = temperature, group = temperature),
+              inherit.aes = F, alpha = 0.2) +
+
+  # formatting
+  facet_grid(population ~ year, labeller = labeller(population = pop_labels)) +
+  # scale_color_viridis_d(direction = -1, aesthetics = c('color', 'fill')) +
+  scale_color_manual(values = c("#E69F00", "#0072B2"), aesthetics = c('color', 'fill'),
+                     labels = c("Warm: 38/23°C", "Cool: 28/13°C"),
+                     guide = guide_legend(reverse = T)) +
+  scale_y_continuous(n.breaks = 3) +
+  guides(fill = 'none') +
+  labs(y = "Proportion Reproductive", x = "Daylength (hr)", color = "Temperature Regime") +
+  theme_bw(base_size = 15) +
+  theme(strip.background=element_rect(color = 'black', fill="white", size = 1),
+        legend.position = 'bottom',
+        panel.grid = element_blank()
+  )
+##Export: 654 x 530
 
