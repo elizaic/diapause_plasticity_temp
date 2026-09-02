@@ -47,7 +47,9 @@ summaryFirstFrost <- firstFrost2022 %>%
   group_by(site) %>%
   summarize(meanDay = mean(firstfrostday, na.rm = TRUE),
             meanTemp = mean(firstfrosttemp, na.rm = TRUE),
-            SDDay = sd(firstfrostday, na.rm = TRUE)
+            SDDay = sd(firstfrostday, na.rm = TRUE),
+            varDay = var(firstfrostday, na.rm = T),
+            n = n()
             )
 
 ## first frost day

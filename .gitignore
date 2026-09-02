@@ -1,0 +1,11 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+
+# folders that shouldn't be on git
+Photothermographs_fritzi_dan/
+climate_data/
+map_data/
+2022Data_raw/
+

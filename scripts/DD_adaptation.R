@@ -71,7 +71,10 @@ ggplot(data = plast_CDL, aes(x = week, y = week.avehigh, color = population, lin
   geom_line()
 
 #extract slope and intercept from each population
-###!!!!!! CDL_estimates file uploaded in 2022... file----
+CDL_estimates <- read.csv("CDL_estimates.csv")
+CDL_estimates$population <- factor(CDL_estimates$population, levels = c("De", "Sg", "Bi", "Ci"), labels = c("Delta", "StGeorge", "BigBend", "Cibola") )
+CDL_estimates$temperature <- factor(CDL_estimates$temperature, levels = c("38", "28"))
+
 CDL_estimates <- CDL_estimates %>% mutate(temperature.cont = as.double(as.character(temperature)))
 str(CDL_estimates)
 
@@ -164,7 +167,10 @@ DD.gained.results_fromfn <- DD.gained.data.afterJuly[DD.gained.data.afterJuly$da
 DD.gained.results_fromfn$population <- factor(DD.gained.results_fromfn$population, levels = c("Delta", 'StGeorge', 'BigBend', "Cibola") )#, labels = c("Delta", 'St. George', 'Big Bend', "Cibola"))
 
 #when does CDL happen each year for constant CDL
-DD.gained.data.afterJuly_withconstant <- left_join(DD.gained.data.afterJuly, bean_cdl_estimates)
+DD.gained.data.afterJuly_withconstant <-left_join(uspest %>% dplyr::select(population, dayofyear, week, year, daylength), bean_cdl_estimates) %>%
+  left_join(ave.cum.dd) %>% filter(week > 26)
+
+# DD.gained.data.afterJuly_withconstant <- left_join(DD.gained.data.afterJuly, bean_cdl_estimates)
 
 DD.gained.results_fromfn_constant <- DD.gained.data.afterJuly_withconstant[DD.gained.data.afterJuly_withconstant$daylength < DD.gained.data.afterJuly_withconstant$cdl.2019, ] %>%
   group_by(population, year) %>%
@@ -199,6 +205,18 @@ ggplot() +
   geom_point(data = DD.gained.results_fromfn_constant, aes(x = population, y = dayofyear),
              position = position_jitter(width = 0.2, height = 0), color = 'black')
 
+ggplot() +
+  geom_point(data = DD.gained.results_fromfn, aes(x = population, y = week.CDL),
+             position = position_jitter(width = 0.2, height = 0), color = 'blue') +
+  geom_point(data = DD.gained.results_fromfn_constant, aes(x = population, y = cdl.2019),
+             position = position_jitter(width = 0.2, height = 0), color = 'black')
+
+ggplot() +
+  geom_point(data = DD.gained.results_fromfn, aes(x = population, y = daylength),
+             position = position_jitter(width = 0.2, height = 0), color = 'blue') +
+  geom_point(data = DD.gained.results_fromfn_constant, aes(x = population, y = daylength),
+             position = position_jitter(width = 0.2, height = 0), color = 'black')
+
 #figure out difference between constant and plastic CDL
 DDGainedFullResults <- data.frame(population = DD.gained.results_fromfn$population,
            year = DD.gained.results_fromfn$year,
@@ -206,7 +224,7 @@ DDGainedFullResults <- data.frame(population = DD.gained.results_fromfn$populati
            plastic.DD = DD.gained.results_fromfn$cumulative.degree.days.C,
            plastic.day = DD.gained.results_fromfn$dayofyear,
            plastic.DDremaining = totalDD_plastic$total.DD - totalDD_plastic$cumulative.degree.days.C,
-           constant.CDL = DD.gained.results_fromfn_constant$week.CDL,
+           constant.CDL = DD.gained.results_fromfn_constant$cdl.2019,
            constant.DD = DD.gained.results_fromfn_constant$cumulative.degree.days.C,
            constant.day = DD.gained.results_fromfn_constant$dayofyear,
            constant.DDremaining = totalDD_constant$total.DD - totalDD_constant$cumulative.degree.days.C,
@@ -245,6 +263,26 @@ summary(mod.plasticday)
 emmeans(mod.plasticday, pairwise ~ population)
 plasticday.emout <- as.data.frame(emmeans(mod.plasticday, pairwise ~ population)$emmeans)
 # plasticday.emout$population <- factor(plasticday.emout$population, levels = c("Delta", "StGeorge", "BigBend", "Cibola"), labels = c("Delta", 'St. George', 'Big Bend', "Cibola"))
+
+#model for constant day
+mod.constantday <- lmer(constant.day ~ population + (1|year), data = DDGainedFullResults)
+summary(mod.constantday)
+emmeans(mod.constantday, pairwise ~ population)
+
+#model for plastic degree day
+mod.pasticdday <- lmer(plastic.DD ~ population + (1|year), data = DDGainedFullResults)
+summary(mod.pasticdday)
+emmeans(mod.pasticdday, pairwise ~ population)
+
+#model for constant degree day
+mod.constantdday <- lmer(constant.DD ~ population + (1|year), data = DDGainedFullResults)
+summary(mod.constantdday)
+emmeans(mod.constantdday, pairwise ~ population)
+
+#model for plastic CDL
+mod.plasticcdl <- lmer(plastic.CDL ~ population + (1|year), data = DDGainedFullResults)
+summary(mod.plasticcdl)
+emmeans(mod.plasticcdl, pairwise ~ population)
 
 #model for leftover dd reduced
 mod.leftoverdd <- lmer(dd.leftover.reduced ~ population + (1|year), data = DDGainedFullResults)
@@ -310,13 +348,13 @@ ggplot() +
   # scale_color_manual(values = colorRampPalette(brewer.pal(8, "Greys"))(11) )+
   geom_text(data = plast_CDL %>% filter(week == 53 & population == "Delta" & year == 2020),
             aes(x = week.cumDD, y = week.CDL, group = population),
-            label = "Plastic CDL", hjust = "left", nudge_y = 0.7, nudge_x = 100) +
+            label = "Temperature-sensitive CDL", hjust = "left", nudge_y = .7, nudge_x = 100) +
 
   #constant CDL lines
   geom_hline(data = bean_cdl_estimates, aes(yintercept = cdl.2019), linetype = 2, size = 1) +
   geom_text(data = bean_cdl_estimates %>% filter(population == "Delta"),
             aes(x = 4500, y = cdl.2019, group = population),
-            label = "Non-plastic CDL", hjust = "center", nudge_y = -0.5) +
+            label = "Daylength-only\nCDL", hjust = "center", nudge_y = 0.5) +
 
   #Month labels
   geom_point(data = first_ofthe_month_all, aes(x = cumulative.degree.days.C, y = daylength)) +
@@ -324,10 +362,10 @@ ggplot() +
             label = rep(month.letters,4), nudge_y = -0.5, nudge_x = 60) +
 
   #DD gained labels
-  geom_text(data = average.ddgained, aes(x = 820, y = 19, group = population),
-            label = "Degree days gained with plasticity:", hjust = "left", size = 4.5) +
-  geom_text(data = average.ddgained, aes(x = 3610, y = 19, group = population),
-            label = average.ddgained$dd.gained, hjust = "left", size = 4.7) +
+  # geom_text(data = average.ddgained, aes(x = 820, y = 19, group = population),
+  #           label = "Degree days gained with plasticity:", hjust = "left", size = 4.5) +
+  # geom_text(data = average.ddgained, aes(x = 3610, y = 19, group = population),
+  #           label = average.ddgained$dd.gained, hjust = "left", size = 4.7) +
 
   #formatting
   facet_wrap(~ population, nrow = 4, strip.position = "right", labeller = as_labeller(pop.names)) +
@@ -338,6 +376,13 @@ ggplot() +
 
 
 #export 718 x 710 (or 714 x 680)
+
+
+
+
+
+
+
 
 
 # If high (cibola) plasticity is adaptive at all populations----
@@ -492,6 +537,16 @@ frost.uspest <- uspest.aferJuly[uspest.aferJuly$minimum.temperature.C < 0, ] %>%
   group_by(population, year) %>%
   filter(rank(dayofyear, ties.method = 'first') == 1)
 frost.uspest$population <- factor(frost.uspest$population, levels = c("Delta", 'StGeorge', 'BigBend', "Cibola") )#, labels = c("Delta", 'St. George', 'Big Bend', "Cibola"))
+
+summaryFirstFrost.uspest <- frost.uspest %>%
+  group_by(population) %>%
+  summarize(meanDay = mean(dayofyear, na.rm = TRUE),
+            meanTemp = mean(minimum.temperature.C, na.rm = TRUE),
+            SDDay = sd(dayofyear, na.rm = TRUE),
+            varDay = var(dayofyear, na.rm = T),
+            n = n()
+  )
+summaryFirstFrost.uspest
 
 #Getting upstream (14 days) dates and temps those days
 frost.uspest.upstreamdates <- data.frame(population = frost.uspest$population,

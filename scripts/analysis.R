@@ -406,6 +406,10 @@ CDL_est_22 <- CDL_est_22 %>% mutate(year = rep(2022, 8))
 CDL_est <- CDL_est %>% mutate(year = rep(2020, 6))
 CDL_bothyears <- rbind(CDL_est, CDL_est_22)
 CDL_bothyears$year <- as.factor(CDL_bothyears$year)
+CDL_bothyears <- CDL_bothyears %>% mutate(latitude = case_when(population == "De" ~ 39.100040, # add column for latitude, for daylength calculation
+                            population == "Sg" ~ 37.086714,
+                            population == "Bi" ~ 35.060760,
+                            population == "Ci" ~ 33.303369))
 CDL_bothyears$population = factor(CDL_bothyears$population, levels=c("De", "Sg", "Bi", "Ci"), labels = c("Delta (39°N)", "St. George (37°N)", "Big Bend (35°N)", "Cibola (33°N)"))
 
 
@@ -493,6 +497,14 @@ cdl_mod <- lm(diap_50_est ~ population * temperature, data = CDL_bothyears)
 summary(cdl_mod)
 Anova(cdl_mod, type = 3)
 emmeans(cdl_mod, pairwise ~ temperature|population)
+
+##Correlation of CDL-latitude ----
+CDL_bothyears_warm <- CDL_bothyears %>% filter(temperature == 38)
+CDL_bothyears_cool <- CDL_bothyears %>% filter(temperature == 28)
+
+cor.test(CDL_bothyears_warm$diap_50_est, CDL_bothyears_warm$latitude)
+cor.test(CDL_bothyears_cool$diap_50_est, CDL_bothyears_cool$latitude)
+
 
 ## Daylength at sites
 library(geosphere)
