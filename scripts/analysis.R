@@ -270,7 +270,7 @@ summary(cdl2020_mod)
 
 
 
-# Data 2020 -------------------------------------------------------------------
+# Data 2022 -------------------------------------------------------------------
 
 oviposition_data2022 <- read_excel("plasticity_experiment_data/2022_temp_photoperiod_data.xlsx")
 
