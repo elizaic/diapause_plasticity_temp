@@ -19,6 +19,8 @@ library(brms)
 library(readxl)
 library(ggpubr)
 library(tidybayes)
+library(bayesplot)
+
 
 select <- dplyr::select
 
@@ -127,13 +129,13 @@ all_data %>% distinct(daylength_hr) %>% range()
 
 bpriors <- c(
   prior(normal(0, 1.5), class = "b"),          # slopes / interactions
-  prior(normal(0, 2),   class = "Intercept"),  # baseline
-  prior(exponential(1), class = "sd")          # batch random-effect SD
+  prior(normal(0, 2),   class = "Intercept")#,  # baseline
+  # prior(exponential(1), class = "sd")          # batch random-effect SD
 )
 
 # Fit model
 fit1 <- brm(eggs_present ~ temperature * daylength_centered * population +
-              (1|daylength_block),
+              daylength_block,
             data = all_data,
             family = bernoulli(link = "logit"),
             prior = bpriors,
@@ -147,13 +149,16 @@ fit1 <- brm(eggs_present ~ temperature * daylength_centered * population +
 summary(fit1)
 
 plot(fit1)
-plot(conditional_effects(fit1, effects = "daylength_hr:population"),
+plot(conditional_effects(fit1, effects = "daylength_centered:population"),
      conditions = 'temperature')
 
 # ggarrange(plotlist = list(plot(conditional_effects(fit1))))
 
 # Model checking -------------------------------------------------------------
 
+
+
+## Other checks --------------------------------------------------------------
 pp_check(fit1, ndraws = 100)                       # posterior predictive check
 pp_check(fit1, type = "error_binned")              # binned residuals vs predictors
 
@@ -196,14 +201,45 @@ draws <- as_draws_df(fit1)
 grid <- expand_grid(
   daylength_centered = seq(min(all_data$daylength_centered), max(all_data$daylength_centered), length.out = 200),
   population  = levels(all_data$population),
-  temperature = levels(all_data$temperature)
+  temperature = levels(all_data$temperature),
+  daylength_block = levels(all_data$daylength_block)
 )
 
-preds <- fitted(
-  fit1, newdata = grid, re_formula = NA,   # population-level predictions,
+preds_by_block <- fitted(
+  fit1, newdata = grid,
   summary = FALSE                          # averaging over batch effect
 )  # returns a draws x rows matrix of predicted probabilities
 
+
+# average across blocks, per draw, per daylength_centered x population x
+# temperature combination -- this gives the block-averaged prediction
+# equivalent to what re_formula = NA gave with the random-effect model
+grid_key <- grid %>%
+  mutate(row = row_number()) %>%
+  group_by(daylength_centered, population, temperature) %>%
+  summarize(rows = list(row), .groups = "drop")
+
+n_draws <- nrow(preds_by_block)
+preds <- matrix(
+  NA_real_,
+  nrow = n_draws,
+  ncol = nrow(grid_key)
+)
+for (j in seq_len(nrow(grid_key))) {
+  cols <- grid_key$rows[[j]]
+  preds[, j] <- rowMeans(preds_by_block[, cols, drop = FALSE])
+}
+# `preds` is now a draws x (daylength_centered x population x temperature)
+# matrix of block-averaged predicted probabilities, matching the shape the
+# rest of the CPP-finding / boundary-probability code expects. Rebuild
+# `grid` to match preds' column ordering (drop daylength_block, now that
+# it's been averaged over):
+grid <- grid_key %>% select(-rows)
+
+
+
+
+# CDL Calculation -----------------------------------------------------------
 
 # For each posterior draw and each population x temperature combination,
 # find the daylength_c at which predicted probability crosses 0.5
@@ -304,11 +340,12 @@ ggplot(data = cdl_summary, aes(x = temperature, y = cdl_reliable, color = popula
 boundary_grid <- expand_grid(
   daylength_centered = c(min(all_data$daylength_centered), max(all_data$daylength_centered)),
   population  = levels(all_data$population),
-  temperature = levels(all_data$temperature)
+  temperature = levels(all_data$temperature),
+  daylength_block = levels(all_data$daylength_block)
 ) %>%
   mutate(daylength = daylength_centered + unique(all_data$daylength_mean))
 
-boundary_preds <- fitted(fit1, newdata = boundary_grid, re_formula = NA)
+boundary_preds <- fitted(fit1, newdata = boundary_grid)
 boundary_summary <- bind_cols(boundary_grid, as_tibble(boundary_preds))
 boundary_summary
 
@@ -332,10 +369,19 @@ cdl_wide <- cdl_by_draw %>%
 grid2 <- expand_grid(
   daylength_centered = seq(min(all_data$daylength_centered), max(all_data$daylength_centered), length.out = 100),
   population  = levels(all_data$population),
-  temperature = levels(all_data$temperature)
+  temperature = levels(all_data$temperature),
+  daylength_block = levels(all_data$daylength_block)
 ) %>%
-  add_epred_draws(fit1, re_formula = NA) %>%
-  median_qi( .width = 0.95)
+  add_epred_draws(fit1) %>%
+  ungroup() %>%
+  group_by(daylength_centered, population, temperature) %>%
+  summarise(
+    value = median(.epred),
+    .lower = quantile(.epred, probs = 0.025),
+    .upper = quantile(.epred, probs = 0.975),
+    .groups = "drop"
+  )
+#
 
 grid2 <- grid2 %>%
   mutate(daylength = daylength_centered + unique(all_data$daylength_mean))
@@ -343,11 +389,11 @@ grid2$population <- factor(grid2$population, levels = c("De", "Sg", "Bi", "Ci"))
 grid2$temperature <- factor(grid2$temperature, levels = c("38", "28"))
 
 
-ggplot(grid2, aes(x = daylength, y = .epred, color = population)) +
+ggplot(grid2, aes(x = daylength, y = value, color = population)) +
   geom_ribbon(aes(x = daylength, ymin = .lower, ymax = .upper, fill = population),
               alpha = 0.2, color = NA) +
   geom_line() +
-  facet_wrap(~ temperature) +
+  facet_wrap(~ factor(temperature, levels = c('28', '38'))) +
   # add cdl
   # geom_rect(data = cdl_summary %>%
   #             filter(frac_crosses > 0.95),
@@ -366,7 +412,7 @@ ggplot(grid2, aes(x = daylength, y = .epred, color = population)) +
   theme_classic(base_size = 16)
 
 
-ggplot(grid2, aes(x = daylength, y = .epred, color = temperature)) +
+ggplot(grid2, aes(x = daylength, y = value, color = temperature)) +
   geom_ribbon(aes(x = daylength, ymin = .lower, ymax = .upper, fill = temperature),
               alpha = 0.2, color = NA) +
   geom_line() +
@@ -417,4 +463,6 @@ fixef(fit1)
 hypothesis(fit1, "daylength_centered:population = daylength_centered:populationCi")
 
 
-emmeans::emmeans(fit1, pairwise ~ temperature|daylength_centered|population, type = 'response')
+emmeans::emmeans(fit1, pairwise ~ daylength_block|temperature|population, type = 'response')
+
+
