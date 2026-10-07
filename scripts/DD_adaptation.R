@@ -1,3 +1,4 @@
+library(tidyverse)
 library(lubridate)
 library(geosphere)
 library(degday)
@@ -71,7 +72,7 @@ ggplot(data = plast_CDL, aes(x = week, y = week.avehigh, color = population, lin
   geom_line()
 
 #extract slope and intercept from each population
-CDL_estimates <- read.csv("CDL_estimates.csv")
+CDL_estimates <- read.csv("data_derived/CDL_estimates.csv")
 CDL_estimates$population <- factor(CDL_estimates$population, levels = c("De", "Sg", "Bi", "Ci"), labels = c("Delta", "StGeorge", "BigBend", "Cibola") )
 CDL_estimates$temperature <- factor(CDL_estimates$temperature, levels = c("38", "28"))
 
@@ -111,7 +112,7 @@ plast_CDL$week.CDL <- as.numeric(plast_CDL$week.CDL)
 str(plast_CDL)
 
 #Plot the weekly CDLs
-ggplot(data = plast_CDL, aes(x = week, y = week.CDL, color = population, linetype = year)) +
+ggplot(data = plast_CDL, aes(x = week, y = week.CDL, color = site_name)) +
   geom_line()
 
 #relate weekly CDL to cumulative degree days

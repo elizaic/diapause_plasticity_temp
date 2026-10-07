@@ -330,6 +330,54 @@ ggplot(data = cdl_summary, aes(x = temperature, y = cdl_reliable, color = popula
   guides(shape = 'none', linetype = 'none', size = 'none') +
   theme_classic(base_size = 16)
 
+
+# Write out CDL summary for photothermo graphs
+write.csv(cdl_summary, "data_derived/new_cdl_summary.csv", row.names = FALSE)
+
+
+
+# Plasticity slopes of CDL for each draw --------------------------------------
+plast_by_draw <- cdl_by_draw %>%
+  mutate(
+    # reliable = if_else(frac_crosses > 0.95, 1, 0),
+    cdl_reliable = if_else(status == 'above_range', 10.3, cdl)
+  ) %>%
+  # filter(draw < 3) %>%
+  group_by(draw, population) %>%
+  pivot_wider(names_from = temperature, values_from = c(status, cdl_c, cdl, cdl_reliable)) %>%
+  # this is where we calculate the slope
+  summarise(
+    cdl_plast = (cdl_reliable_38 - cdl_reliable_28)/10
+  )
+# a different, less efficient way to calculate the same slope
+  # group_modify(~ broom::tidy(lm(cdl_reliable ~ as.double(temperature), data = .x))) %>%
+  # filter(term == "as.double(temperature)")
+
+plast_summary <- plast_by_draw %>%
+  ungroup() %>%
+  group_by(population) %>%
+  summarise(
+    slope = median(cdl_plast),
+    slope_l = quantile(cdl_plast, probs = 0.025),
+    slope_u = quantile(cdl_plast, probs = 0.975),
+    .groups = "drop"
+  ) %>%
+  mutate(across(starts_with("slope"), \(x) x * 60, .names = "{.col}_minute"))
+
+plast_summary$population <- factor(plast_summary$population, levels = c("De", "Sg", "Bi", "Ci"))
+
+ggplot(plast_summary) +
+  geom_pointinterval(aes(x = slope_minute, y = population, xmin = slope_l_minute, xmax = slope_u_minute),
+                     size = 3) +
+  geom_vline(xintercept = 0, linetype = 2) +
+  labs(x = "CDL Plasticity (minutes / degree C)") +
+  theme_classic()
+
+
+# Write out CDL summary for photothermo graphs
+write.csv(plast_summary, "data_derived/plast_summary.csv", row.names = FALSE)
+
+
 # # 6b. Robust fallback: boundary probabilities instead of forcing a CPP
 
 # # For groups where CPP is poorly identified (low frac_crosses above), a more
@@ -359,10 +407,10 @@ cdl_wide <- cdl_by_draw %>%
   pivot_wider(names_from = population, values_from = cdl)
 
 # Replace "PopA","PopB" with your actual population labels
-# diff_draws <- cpp_wide$PopA - cpp_wide$PopB
-# mean(diff_draws); quantile(diff_draws, c(0.025, 0.975))
-# mean(diff_draws > 0)   # posterior probability PopA has higher CPP than PopB
-#####
+diff_draws <- cdl_wide$De - cdl_wide$Sg
+mean(diff_draws); quantile(diff_draws, c(0.025, 0.975))
+mean(diff_draws > 0)   # posterior probability PopA has higher CPP than PopB
+#####.
 
 
 
