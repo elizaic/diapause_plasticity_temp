@@ -178,7 +178,7 @@ pp_check(fit1, type = "error_binned")              # binned residuals vs predict
 
 
 
-# Population differences --------------------------------------------------
+# Population differences - predictions ---------------------------------------
 
 # Conditional effects plot: predicted diapause probability vs daylength,
 #     separately by population and temperature
@@ -347,7 +347,8 @@ plast_by_draw <- cdl_by_draw %>%
   pivot_wider(names_from = temperature, values_from = c(status, cdl_c, cdl, cdl_reliable)) %>%
   # this is where we calculate the slope
   summarise(
-    cdl_plast = (cdl_reliable_38 - cdl_reliable_28)/10
+    cdl_plast = (cdl_reliable_38 - cdl_reliable_28)/10,
+    cdl_intercept = cdl_reliable_28 - cdl_plast * 28
   )
 # a different, less efficient way to calculate the same slope
   # group_modify(~ broom::tidy(lm(cdl_reliable ~ as.double(temperature), data = .x))) %>%
@@ -356,19 +357,14 @@ plast_by_draw <- cdl_by_draw %>%
 plast_summary <- plast_by_draw %>%
   ungroup() %>%
   group_by(population) %>%
-  summarise(
-    slope = median(cdl_plast),
-    slope_l = quantile(cdl_plast, probs = 0.025),
-    slope_u = quantile(cdl_plast, probs = 0.975),
-    .groups = "drop"
-  ) %>%
-  mutate(across(starts_with("slope"), \(x) x * 60, .names = "{.col}_minute"))
+  median_qi(cdl_plast, cdl_intercept) %>%
+  mutate(across(starts_with("cdl_plast"), \(x) x * 60, .names = "{.col}_minute"))
 
 plast_summary$population <- factor(plast_summary$population, levels = c("De", "Sg", "Bi", "Ci"))
 
 ggplot(plast_summary) +
-  geom_pointinterval(aes(x = slope_minute, y = population, xmin = slope_l_minute, xmax = slope_u_minute),
-                     size = 3) +
+  geom_pointrange(aes(x = cdl_plast_minute, y = population,
+                      xmin = cdl_plast.lower_minute, xmax = cdl_plast.upper_minute)) +
   geom_vline(xintercept = 0, linetype = 2) +
   labs(x = "CDL Plasticity (minutes / degree C)") +
   theme_classic()
@@ -376,6 +372,9 @@ ggplot(plast_summary) +
 
 # Write out CDL summary for photothermo graphs
 write.csv(plast_summary, "data_derived/plast_summary.csv", row.names = FALSE)
+
+# write out plasticity calculations by draw
+write.csv(plast_by_draw, "data_derived/plast_by_draw.csv", row.names = FALSE)
 
 
 # # 6b. Robust fallback: boundary probabilities instead of forcing a CPP
